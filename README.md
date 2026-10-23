@@ -14,10 +14,12 @@ vykoná ich validáciu, transformáciu a natrénuje regresný model schopný pre
 │   └── training_data_set.csv
 ├── docs
 ├── report
+│   ├── eda
 │   └── logs
 ├── src
 │   ├── data_handling
 │   │   ├── data_loader.py
+│   │   ├── eda_analyzer.py
 │   │   └── __init__.py
 │   ├── utils
 │   │   ├── base.py

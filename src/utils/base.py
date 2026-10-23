@@ -22,7 +22,6 @@ class BaseConfigManager(ABC):
             raise FileNotFoundError(f"Configuration directory '{self.config_dir}' not found.")
 
         self._config: Dict[str, Any] = {}
-        # self.project_root = self.config_dir.parent
         
     @abstractmethod
     def load_config(self, config_name: str) -> None:

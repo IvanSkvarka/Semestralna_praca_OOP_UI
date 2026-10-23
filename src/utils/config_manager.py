@@ -3,13 +3,14 @@ from pathlib import Path
 import yaml
 from .base import BaseConfigManager
 
+
+
 class ConfigManager(BaseConfigManager):
     """Loads YAML configuration files and provides access to their values.
 
     Configuration files are expected to be named ``<config_name>.yaml`` and
     stored in the configured directory.
     """
-
     def load_config(self, config_name: Union[str, List[str]]) -> None:
         """Loads a YAML configuration file into memory.
 
@@ -33,6 +34,7 @@ class ConfigManager(BaseConfigManager):
             self._config[config_name] = data if data is not None else {}
 
         return None
+
 
     def get_param(self, key: str, default: Any = None) -> Any:
         """Retrieves a configuration value using a dot-separated key.
