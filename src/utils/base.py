@@ -1,4 +1,5 @@
-from typing import Any
+from typing import Any, Dict, Union
+from pathlib import Path
 from abc import ABC, abstractmethod
 
 class BaseConfigManager(ABC):
@@ -6,14 +7,30 @@ class BaseConfigManager(ABC):
 
     Concrete subclasses provide configuration loading and parameter lookup.
     """
+    def __init__(self, config_dir: Union[str, Path]) -> None:
+        """Initializes the configuration manager.
 
+        Args:
+            config_dir (str | Path): Directory containing YAML configuration files.
+
+        Raises:
+            FileNotFoundError: If the configuration directory does not exist.
+        """
+        self.config_dir = Path(config_dir)
+
+        if not self.config_dir.is_dir():
+            raise FileNotFoundError(f"Configuration directory '{self.config_dir}' not found.")
+
+        self._config: Dict[str, Any] = {}
+        # self.project_root = self.config_dir.parent
+        
     @abstractmethod
     def load_config(self, config_name: str) -> None:
-        pass
+        """Abstract method"""
 
     @abstractmethod
-    def get_param(self, key: str, default = None) -> Any:
-        pass
+    def get_param(self, key: str, default: Any = None) -> Any:
+        """Abstract method"""
 
     def __getitem__(self, key: str) -> Any:
         """Return a configuration parameter using dictionary-style access.
@@ -27,7 +44,7 @@ class BaseConfigManager(ABC):
         Raises:
             KeyError: If the parameter cannot be found.
         """
-        return self.get_param(key)
+        return self.get_param(key, None)
 
     def __contains__(self, key: str) -> bool:
         """Check whether a configuration parameter can be retrieved.

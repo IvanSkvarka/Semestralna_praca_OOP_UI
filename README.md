@@ -1,17 +1,24 @@
-# Semestralna praca
+# Semestrálna práca
+
+## Téma práce
+Návrh a implementácia znovupoužiteľného objektovo orientovaného systému (pipeline), ktorý načíta surové dáta,
+vykoná ich validáciu, transformáciu a natrénuje regresný model schopný predikovať veličiny.
 
 ## Štruktúra projektu
-```text
+<pre>
 .
 ├── config
-│   └── config.yaml
+│   ├── config.yaml
+│   └── settings.yaml
 ├── data
 │   └── training_data_set.csv
 ├── docs
 ├── report
+│   └── logs
 ├── src
-│   ├── data
+│   ├── data_handling
 │   │   ├── data_loader.py
+│   │   └── __init__.py
 │   ├── utils
 │   │   ├── base.py
 │   │   ├── config_manager.py
@@ -23,4 +30,4 @@
 ├── tests
 ├── LICENSE
 └── README.md
-```
+</pre>

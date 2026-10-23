@@ -1,0 +1,9 @@
+from data_handling.data_loader import DataLoader # pylint: disable=import-error
+from utils.config_manager import ConfigManager # pylint: disable=import-error
+
+
+if __name__ == "__main__":
+    cfg = ConfigManager("config")
+    cfg.load_config(["settings", "config"])
+    data_loader = DataLoader(cfg, "Reactor")
+    data_loader()

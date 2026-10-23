@@ -1,7 +1,7 @@
+from typing import Any, Dict, Union, List
+from pathlib import Path
 import yaml
-from pathlib import Path 
-from typing import Any, Union, Dict
-from config.base import BaseConfigManager
+from .base import BaseConfigManager
 
 class ConfigManager(BaseConfigManager):
     """Loads YAML configuration files and provides access to their values.
@@ -10,43 +10,27 @@ class ConfigManager(BaseConfigManager):
     stored in the configured directory.
     """
 
-    def __init__(self, config_dir: Union[str, Path]) -> None:
-        """Initializes the configuration manager.
-
-        Args:
-            config_dir (str | Path): Directory containing YAML configuration files.
-
-        Raises:
-            FileNotFoundError: If the configuration directory does not exist.
-        """
-        self.config_dir = Path(config_dir)
-
-        if not self.config_dir.is_dir():
-            raise FileNotFoundError(f"Configuration directory '{self.config_dir}' not found.")
-
-        self._config: Dict[str, Any] = {}
-        # self.project_root = self.config_dir.parent
-
-    def load_config(self, config_name: str = "config") -> None:
+    def load_config(self, config_name: Union[str, List[str]]) -> None:
         """Loads a YAML configuration file into memory.
 
         Args:
-            config_name (str): Name of the configuration file, without the ``.yaml`` extension.
+            config_name (str | list[str]): Name of the configuration file, without the ``.yaml`` extension.
 
         Raises:
             FileNotFoundError: If the configuration file does not exist.
             yaml.YAMLError: If the file contains invalid YAML.
         """
-        filepath = Path(self.config_dir / f"{config_name}.yaml")
+        config_names = config_name if isinstance(config_name, list) else list(config_name)
+        for config_name in config_names:
+            filepath = Path(self.config_dir / f"{config_name}.yaml")
 
-        if not filepath.is_file():
-            raise FileNotFoundError(f"No configuration file found at '{filepath}'.")
-        
-        with open(filepath, "r", encoding="utf-8") as file:
-            data = yaml.safe_load(file)
+            if not filepath.is_file():
+                raise FileNotFoundError(f"No configuration file found at '{filepath}'.")
 
-        for name in data.keys():
-            self._config[name] = data.get(name) if data is not None else {}
+            with open(filepath, "r", encoding="utf-8") as file:
+                data = yaml.safe_load(file)
+
+            self._config[config_name] = data if data is not None else {}
 
         return None
 
@@ -65,19 +49,12 @@ class ConfigManager(BaseConfigManager):
             KeyError: If the key is not found and no default is provided.
         """
         parts = key.split('.')
-        current_config = self._config
+        current_config: Dict[str, Any] = self._config
 
         try:
             for part in parts:
-                if not isinstance(current_config, dict):
-                    raise KeyError(f"Path '{key}' doesn't exist, because part before '{part}' is not dictionary.")
-                current_config = current_config.get(part)
-
-            if current_config is None:
-                if default is not None:
-                    return default
-                raise KeyError(f"Key '{key}' not found in configuration.")
+                current_config = current_config[part]
             return current_config
-        
-        except (KeyError, TypeError, AttributeError) as e:
-            raise KeyError(f"Configuration parameter '{key}' not found and no default provided.") from e
+
+        except KeyError:
+            return default

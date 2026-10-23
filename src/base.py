@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Union
-from config import ConfigManager
+import logging
+from utils.config_manager import ConfigManager # pylint: disable=import-error
+from utils.logger import get_logger # pylint: disable=import-error
 
 class BasePipelineComponent(ABC):
     """An abstract base class for all steps in the ML pipeline.
@@ -17,11 +19,13 @@ class BasePipelineComponent(ABC):
         Raises:
             TypeError: Config_manager is not an instance of ConfigManager class.
         """
-        if not isinstance(config_manager, ConfigManager):
-            raise TypeError("Parameter 'config_manager' must be ConfigManager instance.")
+        # if not isinstance(config_manager, ConfigManager):
+        #     raise TypeError("Parameter 'config_manager' must be ConfigManager instance.")
 
         self._config_manager = config_manager
         self._name = name if name is not None else self.__class__.__name__
+        self._logger = get_logger(self._name, self._config_manager)
+        self._logger.info("Initialized component '%s'", self._name)
 
     @property
     def config_manager(self) -> ConfigManager:
@@ -33,14 +37,20 @@ class BasePipelineComponent(ABC):
         """Returns the component name (read-only)."""
         return self._name
 
+    @property
+    def logger(self) -> logging.Logger:
+        """Returns a reference to ConfigManager (read-only)."""
+        return self._logger
+
     @abstractmethod
     def run(self, *args: Any, **kwargs: Any) -> Any:
-        pass
+        """Abstract method"""
 
     def __call__(self, *args: Any, **kwargs: Any):
-        """Delegates the call to the self.run() method."""
+        """Delegates the call to the self.run() method. 
+        Automatically logs the progress or any errors that may occur."""
         return self.run(*args, **kwargs)
 
     def __repr__(self):
         """Returns a human-readable text representation of the component for debugging."""
-        return f"<{self.__class__.__name__}(name={self._name}, {self._config_manager.config_path})>"
+        return f"<{self.__class__.__name__}(name={self._name}, {self._config_manager.config_dir})>"

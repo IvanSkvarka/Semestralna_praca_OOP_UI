@@ -1,0 +1,8 @@
+paths:
+  raw_data: "data/training_data_set.csv"
+  output_dir: "report"
+  log_dir: "report/logs"
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
