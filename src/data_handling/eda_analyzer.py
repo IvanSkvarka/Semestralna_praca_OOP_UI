@@ -14,12 +14,22 @@ ERR_MSG = "EDAnalyzer has not been run yet. " \
 
 
 class EDAnalyzer(BasePipelineComponent):
-    """
-    
+    """A pipeline component that performs automated exploratory data analysis.
+
+    Computes descriptive statistics, checks data quality, and looks for anomalies.
+    The class automatically detects linear correlations and flags statistical outliers.
+    All generated analytical matrices can be persisted directly to JSON formatted reports.
     """
     def __init__(self, config_manager: ConfigManager, name: Union[str, None] = None) -> None:
-        """
-        
+        """Initializes the analyzer component and sets up empty internal report placeholders.
+
+        Invokes the parent constructor to register shared infrastructure settings.
+        The internal data attributes for storing statistical matrices are set to None.
+        These placeholders are dynamically populated once the data frame analysis runs.
+
+        Args:
+            config_manager (ConfigManager): Configuration manager instance.
+            name (str | None): Module name.
         """
         super().__init__(config_manager, name)
         self._basic_stats: Optional[pd.DataFrame] = None
@@ -31,7 +41,7 @@ class EDAnalyzer(BasePipelineComponent):
 
     @property
     def basic_stats(self) -> pd.DataFrame:
-        """ """
+        """Provides read-only access to the calculated basic descriptive statistics table."""
         if self._basic_stats is None:
             self.logger.error(ERR_MSG)
             raise RuntimeError(ERR_MSG)
@@ -40,7 +50,7 @@ class EDAnalyzer(BasePipelineComponent):
 
     @property
     def correlation_matrix(self) -> pd.DataFrame:
-        """ """
+        """Provides read-only access to the calculated linear feature correlation matrix."""
         if self._correlation_matrix is None:
             self.logger.error(ERR_MSG)
             raise RuntimeError(ERR_MSG)
@@ -48,7 +58,7 @@ class EDAnalyzer(BasePipelineComponent):
 
     @property
     def quality_report(self) -> Dict[str, Any]:
-        """ """
+        """Provides read-only access to the generated dictionary of data quality metrics."""
         if self._quality_report is None:
             self.logger.error(ERR_MSG)
             raise RuntimeError(ERR_MSG)
@@ -57,7 +67,7 @@ class EDAnalyzer(BasePipelineComponent):
 
     @property
     def outlier_counts(self) -> pd.Series:
-        """ """
+        """Provides read-only access to the aggregated outlier count per numeric column."""
         if self._outlier_counts is None:
             self.logger.error(ERR_MSG)
             raise RuntimeError(ERR_MSG)
@@ -66,8 +76,16 @@ class EDAnalyzer(BasePipelineComponent):
 
 
     def _compute_basic_stats(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        
+        """Computes comprehensive descriptive statistics for the numerical features.
+
+        Transposes standard describe metrics and attaches skewness and kurtosis measurements.
+        The routine also aggregates exact unique value counts and registers total missing rows.
+
+        Args:
+            df (pd.DataFrame): The source dataframe containing records to analyze.
+
+        Returns:
+            pd.DataFrame: A matrix of calculated statistical metrics indexed by column.
         """
         stats = df.describe().T
         stats["skew"] = df.skew(numeric_only=True)
@@ -79,8 +97,16 @@ class EDAnalyzer(BasePipelineComponent):
 
 
     def _check_data_quality(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """
-        
+        """Scans the data frame structure to generate integrity and quality metadata.
+
+        Calculates row and column counts alongside overall missing record occurrences.
+        The method isolates completely constant features and sums up exact duplicate rows.
+
+        Args:
+            df (pd.DataFrame): The target data frame structure evaluated for quality.
+
+        Returns:
+            Dict[str, Any]: A mapping containing quantified structural quality metrics.
         """
         total_missing = int(df.isna().sum().sum())
         missing_by_col = df.isna().sum()[df.isna().sum() > 0].to_dict()
@@ -100,8 +126,18 @@ class EDAnalyzer(BasePipelineComponent):
     def _analyze_correlations(
             self, df: pd.DataFrame, constant_cols: List[str]
         ) -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
-        """
-        
+        """Calculates feature correlations and extracts strongly coupled column pairs.
+
+        Reads parameters from config, drops constant columns, and runs correlation logic.
+        The method iterates over the matrix triangle to flag pairs exceeding the threshold.
+
+        Args:
+            df (pd.DataFrame): Data frame structure containing target numeric data.
+            constant_cols (List[str]): List of invariant feature names to drop first.
+
+        Returns:
+            Tuple[pd.DataFrame, List[Dict[str, Any]]]: A tuple containing the raw
+                correlation matrix and a list of high correlation details.
         """
         method = self.config_manager.get_param("config.eda.correlation_method", "pearson")
         threshold = self.config_manager.get_param("config.eda.correlation_threshold", 0.95)
@@ -126,8 +162,17 @@ class EDAnalyzer(BasePipelineComponent):
 
 
     def _detect_outliers_iqr(self, df: pd.DataFrame, constant_cols: List[str]) -> pd.Series:
-        """
-        
+        """Counts numeric statistical outliers utilizing the Interquartile Range method.
+
+        Isolates non-constant numeric series and retrieves the custom multiplier boundary.
+        The logic establishes upper and lower fences to flag values falling outside ranges.
+
+        Args:
+            df (pd.DataFrame): Data frame containing values evaluated for anomalies.
+            constant_cols (List[str]): List of column labels excluded from inspection.
+
+        Returns:
+            pd.Series: Vector tracking the absolute outlier summation per numeric column.
         """
         multiplier = self.config_manager.get_param("config.eda.iqr_multiplier", 1.5)
 
@@ -145,13 +190,18 @@ class EDAnalyzer(BasePipelineComponent):
 
 
     def _save_reports(self) -> None:
-        """
-        
+        """Persists the collected data analysis reports into JSON structured files.
+
+        Checks configuration settings to confirm whether output saving is allowed.
+        The routine creates an eda subdirectory and converts frames to JSON format.
+
+        Returns:
+            None: The method performs directory write tasks and returns nothing.
         """
         if not self.config_manager.get_param("config.eda.save_reports", True):
             self.logger.info(
                 "Saving is turned off. If you want save reports,"
-                " add config.eda.save_reports and set value `True`."
+                " add config.eda.save_reports and set value to `True`."
             )
             return None
 
@@ -160,7 +210,7 @@ class EDAnalyzer(BasePipelineComponent):
         eda_dir = Path(base_output) / "eda"
         eda_dir.mkdir(parents=True, exist_ok=True)
 
-        full_report: Dict[str, Any] = {
+        full_report: Dict[str, Any] = { # Create output dict safely
             "dataset_info": self._quality_report,
             "basic_statistics": (
                 json.loads(self._basic_stats.to_json(orient="index"))
@@ -182,10 +232,24 @@ class EDAnalyzer(BasePipelineComponent):
 
         return None
 
-    def run(self, df: pd.DataFrame) -> Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]:
+    def run(self, *args: Any, **kwargs: Any) -> Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]:
+        """Triggers the full pipeline data profiling and artifact generation sequence.
+
+        Extracts the target dataframe and routes it through statistical subroutines.
+        The results are attached to properties, exported to reports, and returned back.
+
+        Args:
+            *args (Any): Variable positional parameters, expects DataFrame at index 0.
+            **kwargs (Any): Variable keyword parameters, currently unsupported.
+
+        Returns:
+            Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]: A tuple containing quality
+            report details, basic statistics frame, and the correlation matrix.
         """
-        
-        """
+        if not isinstance(args[0], pd.DataFrame) or kwargs:
+            self.logger.warning("Args except for position 0 and kwargs are not implemented yet.")
+
+        df: pd.DataFrame = args[0]
         self._basic_stats = self._compute_basic_stats(df)
         self._quality_report = self._check_data_quality(df)
         (

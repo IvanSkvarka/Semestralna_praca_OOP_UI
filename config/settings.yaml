@@ -2,6 +2,7 @@ paths:
   raw_data: "data/training_data_set.csv"
   output_dir: "report"
   log_dir: "report/logs"
+  figures_dir: "report/figures"
 
 logging:
   level: "INFO"

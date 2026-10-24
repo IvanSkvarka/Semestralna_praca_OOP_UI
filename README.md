@@ -5,7 +5,7 @@ Návrh a implementácia znovupoužiteľného objektovo orientovaného systému (
 vykoná ich validáciu, transformáciu a natrénuje regresný model schopný predikovať veličiny.
 
 ## Štruktúra projektu
-<pre>
+```bash
 .
 ├── config
 │   ├── config.yaml
@@ -32,4 +32,4 @@ vykoná ich validáciu, transformáciu a natrénuje regresný model schopný pre
 ├── tests
 ├── LICENSE
 └── README.md
-</pre>
+```

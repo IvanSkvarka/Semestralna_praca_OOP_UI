@@ -10,8 +10,8 @@ from utils.config_manager import ConfigManager # pylint: disable=import-error
 
 if __name__ == "__main__":
     cfg = ConfigManager("config")
-    cfg.load_config(["settings", "config"])
-    data_loader = DataLoader(cfg, "Reactor")
+    cfg.load_config(["settings", "config", "units"])
+    data_loader = DataLoader(cfg, "ReactorDataLoader")
     data_loader()
-    eda_analyzer = EDAnalyzer(cfg, "Reactor")
+    eda_analyzer = EDAnalyzer(cfg, "ReactorEDAnalyzers")
     eda_analyzer(data_loader.data)
