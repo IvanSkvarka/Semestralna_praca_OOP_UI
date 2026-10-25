@@ -1,0 +1,112 @@
+{
+    "num_rows": 768,
+    "num_columns": 24,
+    "total_missing": 0,
+    "missing_by_column": {},
+    "duplicate_rows": 1,
+    "constant_columns": [
+        "n_blades_1",
+        "pitch_angle_1",
+        "diameter_impeller_3",
+        "ax_posImpeller_3",
+        "n_blades_3",
+        "pitch_angle_3",
+        "n_diptubes",
+        "n_baffles"
+    ],
+    "high_correlations": [
+        {
+            "feature_1": "volume",
+            "feature_2": "liquid_height",
+            "correlation": 0.897974
+        },
+        {
+            "feature_1": "reactor_diameter",
+            "feature_2": "bottom_depth",
+            "correlation": 1.0
+        },
+        {
+            "feature_1": "reactor_diameter",
+            "feature_2": "diameter_impeller_1",
+            "correlation": 1.0
+        },
+        {
+            "feature_1": "reactor_diameter",
+            "feature_2": "ax_posImpeller_1",
+            "correlation": -1.0
+        },
+        {
+            "feature_1": "liquid_height",
+            "feature_2": "diameter_impeller_2",
+            "correlation": 0.940168
+        },
+        {
+            "feature_1": "liquid_height",
+            "feature_2": "ax_posImpeller_2",
+            "correlation": 0.940357
+        },
+        {
+            "feature_1": "bottom_depth",
+            "feature_2": "diameter_impeller_1",
+            "correlation": 1.0
+        },
+        {
+            "feature_1": "bottom_depth",
+            "feature_2": "ax_posImpeller_1",
+            "correlation": -1.0
+        },
+        {
+            "feature_1": "n_impeller",
+            "feature_2": "n_blades_2",
+            "correlation": 0.901535
+        },
+        {
+            "feature_1": "n_impeller",
+            "feature_2": "pitch_angle_2",
+            "correlation": 0.971001
+        },
+        {
+            "feature_1": "diameter_impeller_1",
+            "feature_2": "ax_posImpeller_1",
+            "correlation": -1.0
+        },
+        {
+            "feature_1": "diameter_impeller_2",
+            "feature_2": "ax_posImpeller_2",
+            "correlation": 0.999905
+        },
+        {
+            "feature_1": "n_blades_2",
+            "feature_2": "pitch_angle_2",
+            "correlation": 0.865695
+        },
+        {
+            "feature_1": "rpm",
+            "feature_2": "strainRate_p50",
+            "correlation": 0.973926
+        },
+        {
+            "feature_1": "k_p50",
+            "feature_2": "Umag_p50",
+            "correlation": 0.866967
+        }
+    ],
+    "outliers_iqr": {
+        "volume": 88,
+        "reactor_diameter": 0,
+        "liquid_height": 44,
+        "bottom_depth": 0,
+        "n_impeller": 0,
+        "diameter_impeller_1": 0,
+        "ax_posImpeller_1": 0,
+        "diameter_impeller_2": 48,
+        "ax_posImpeller_2": 48,
+        "n_blades_2": 0,
+        "pitch_angle_2": 0,
+        "rpm": 18,
+        "strainRate_p50": 32,
+        "epsilon_p50": 69,
+        "k_p50": 71,
+        "Umag_p50": 22
+    }
+}

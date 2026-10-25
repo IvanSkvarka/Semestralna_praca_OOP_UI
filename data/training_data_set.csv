@@ -1,4 +1,4 @@
-volume,reactor_diameter,liquid_height,bottom_depth,n_impeller,diameter_impeller_1,axPos_impeller_1,n_blades_1,pitch_angle_1,diameter_impeller_2,axPos_impeller_2,n_blades_2,pitch_angle_2,diameter_impeller_3,axPos_impeller_3,n_blades_3,pitch_angle_3,n_diptubes,n_baffles,rpm,strainRate_p50,epsilon_p50,k_p50,Umag_p50
+volume,reactor_diameter,liquid_height,bottom_depth,n_impeller,diameter_impeller_1,ax_posImpeller_1,n_blades_1,pitch_angle_1,diameter_impeller_2,ax_posImpeller_2,n_blades_2,pitch_angle_2,diameter_impeller_3,ax_posImpeller_3,n_blades_3,pitch_angle_3,n_diptubes,n_baffles,rpm,strainRate_p50,epsilon_p50,k_p50,Umag_p50
 0.223838477,0.1,0.015166666721635885,0.02,1,0.035,-0.014,2,0,0.0,0.0,0,0,0,0,0,0,0,4,1000,35.991811901030644,0.04062025302885002,0.00424265033260259,0.21951650676067874
 0.537212344,0.1,0.055066666696733615,0.02,2,0.035,-0.014,2,0,0.05,0.04,4,45,0,0,0,0,0,4,1000,50.09747420739645,0.47368216032421673,0.031068643606542927,0.35287148118139955
 0.805818516,0.1,0.0892666667117671,0.02,2,0.035,-0.014,2,0,0.05,0.04,4,45,0,0,0,0,0,4,1000,40.76512260071871,0.46984853701497836,0.033162089820817295,0.2996011910786556

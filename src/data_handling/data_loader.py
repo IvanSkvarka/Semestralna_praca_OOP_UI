@@ -27,8 +27,8 @@ class DataLoader(BasePipelineComponent):
         """
         super().__init__(config_manager, name)
         self._file_path = Path(self.config_manager["settings.paths.raw_data"])
-        self._target_columns = list(self.config_manager["config.data.target_columns"])
-        _feature_columns = self.config_manager["config.data.feature_columns"]
+        self._target_columns = list(self.config_manager["data.target_columns"])
+        _feature_columns = self.config_manager["data.feature_columns"]
         self._feature_columns = list(_feature_columns) if _feature_columns else None
 
         self._data: Optional[pd.DataFrame] = None
@@ -135,7 +135,7 @@ class DataLoader(BasePipelineComponent):
             self._target_columns = [col for col in self._target_columns if col in df.columns]
 
         if self._feature_columns is not None:
-            # NOTE: Prepisanie premennej `missing_targets`
+            # NOTE: Overwrite of `missing_targets`
             missing_targets = [col for col in self._feature_columns if col not in df.columns]
             if missing_targets:
                 self.logger.warning(

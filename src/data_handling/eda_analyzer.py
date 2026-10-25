@@ -139,8 +139,8 @@ class EDAnalyzer(BasePipelineComponent):
             Tuple[pd.DataFrame, List[Dict[str, Any]]]: A tuple containing the raw
                 correlation matrix and a list of high correlation details.
         """
-        method = self.config_manager.get_param("config.eda.correlation_method", "pearson")
-        threshold = self.config_manager.get_param("config.eda.correlation_threshold", 0.95)
+        method = self.config_manager["pipeline.eda.correlation_method"]
+        threshold = self.config_manager["pipeline.eda.correlation_threshold"]
 
         df_valid = df.drop(columns=constant_cols)
         corr_matrix = df_valid.corr(method=method, numeric_only=True)
@@ -174,17 +174,16 @@ class EDAnalyzer(BasePipelineComponent):
         Returns:
             pd.Series: Vector tracking the absolute outlier summation per numeric column.
         """
-        multiplier = self.config_manager.get_param("config.eda.iqr_multiplier", 1.5)
+        multiplier = self.config_manager["pipeline.eda.iqr_multiplier"]
 
-        df_valid = df.drop(columns=constant_cols)
-        df_numeric = df_valid.select_dtypes(include="number")
+        df_valid = df.drop(columns=constant_cols).select_dtypes(include="number")
 
         q1 = df_valid.quantile(0.25)
         q3 = df_valid.quantile(0.75)
         iqr = q3 - q1
 
-        is_outlier = (df_numeric < (q1 - multiplier * iqr)) | (
-            df_numeric > (q3 + multiplier * iqr)
+        is_outlier = (df_valid < (q1 - multiplier * iqr)) | (
+            df_valid > (q3 + multiplier * iqr)
         )
         return is_outlier.sum()
 
@@ -198,14 +197,14 @@ class EDAnalyzer(BasePipelineComponent):
         Returns:
             None: The method performs directory write tasks and returns nothing.
         """
-        if not self.config_manager.get_param("config.eda.save_reports", True):
+        if not self.config_manager["pipeline.eda.save_reports"]:
             self.logger.info(
                 "Saving is turned off. If you want save reports,"
-                " add config.eda.save_reports and set value to `True`."
+                " add pipeline.eda.save_reports and set value to `True`."
             )
             return None
 
-        base_output = self.config_manager.get_param("settings.paths.output_dir", "report")
+        base_output = self.config_manager["settings.paths.output_dir"]
 
         eda_dir = Path(base_output) / "eda"
         eda_dir.mkdir(parents=True, exist_ok=True)
@@ -225,8 +224,8 @@ class EDAnalyzer(BasePipelineComponent):
         }
 
         for key, item in full_report.items():
-            output_path = eda_dir / f"{key}.json"
-            with open(output_path, mode="w", encoding="utf-8") as file:
+            file_path = eda_dir / f"{key}.json"
+            with open(file_path, mode="w", encoding="utf-8") as file:
                 json.dump(item, file, indent=4, ensure_ascii=False)
         self.logger.info("Output saved in: %s", eda_dir)
 

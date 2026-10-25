@@ -1,3 +1,9 @@
 __pycache__/
 .helpers/
 *.txt
+
+# ingnored, because not implemetned yet
+tests/conftest.py
+tests/unit_tests/
+tests/integration_tests/
+tests/performance_tests/

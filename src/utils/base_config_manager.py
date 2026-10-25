@@ -24,9 +24,9 @@ class BaseConfigManager(ABC):
             FileNotFoundError: If the provided directory path does not exist or is not a directory.
         """
         self.config_dir = Path(config_dir)
-
         if not self.config_dir.is_dir():
             raise FileNotFoundError(f"Configuration directory '{self.config_dir}' not found.")
+        
         self._config: Dict[str, Any] = {}
 
 
