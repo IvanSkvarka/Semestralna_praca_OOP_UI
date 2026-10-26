@@ -3,14 +3,12 @@ from pathlib import Path
 import json
 import pandas as pd
 
-from base import BasePipelineComponent # pylint: disable=import-error
-from utils.config_manager import ConfigManager # pylint: disable=import-error
+from base import BasePipelineComponent  # pylint: disable=import-error
+from utils.config_manager import ConfigManager  # pylint: disable=import-error
+from visualization.eda_visualizer import EDAVisualizer  # pylint: disable=import-error
 
-
-
-ERR_MSG = "EDAnalyzer has not been run yet. " \
+ERR_MSG = "EDAnalyzer has not been run yet." \
           "First, call the `run()` method or an instance of the object."
-
 
 
 class EDAnalyzer(BasePipelineComponent):
@@ -20,7 +18,9 @@ class EDAnalyzer(BasePipelineComponent):
     The class automatically detects linear correlations and flags statistical outliers.
     All generated analytical matrices can be persisted directly to JSON formatted reports.
     """
-    def __init__(self, config_manager: ConfigManager, name: Union[str, None] = None) -> None:
+    def __init__(
+        self, config_manager: ConfigManager, name: Union[str, None] = None
+    ) -> None:
         """Initializes the analyzer component and sets up empty internal report placeholders.
 
         Invokes the parent constructor to register shared infrastructure settings.
@@ -36,7 +36,33 @@ class EDAnalyzer(BasePipelineComponent):
         self._correlation_matrix: Optional[pd.DataFrame] = None
         self._quality_report: Optional[Dict[str, Any]] = None
         self._outlier_counts: Optional[pd.Series] = None
+        self._constant_cols: List[str] = []
 
+        self._target_cols: List[str] = self.config_manager.get_param(
+            "data.target_columns", []
+        )
+        self._feature_cols: List[str] = self.config_manager.get_param(
+            "data.feature_columns", []
+        )
+        self._generate_plots: bool = self.config_manager.get_param(
+            "pipeline.eda.generate_plots", True
+        )
+        self._visualizer: Optional[EDAVisualizer] = (
+            EDAVisualizer(config_manager, name=f"{self.name}Visualizer")
+            if self._generate_plots
+            else None
+        )
+
+
+
+    @property
+    def visualizer(self) -> Union[EDAVisualizer, None]:
+        """Provides read-only access to the internal EDAVisualizer component."""
+        if self._generate_plots:
+            return self._visualizer
+        else:
+            self.logger.error("Visualization disabled.")
+            raise ValueError("Visualization disabled.")
 
 
     @property
@@ -55,6 +81,7 @@ class EDAnalyzer(BasePipelineComponent):
             self.logger.error(ERR_MSG)
             raise RuntimeError(ERR_MSG)
         return self._correlation_matrix
+
 
     @property
     def quality_report(self) -> Dict[str, Any]:
@@ -75,6 +102,17 @@ class EDAnalyzer(BasePipelineComponent):
 
 
 
+    def _get_active_subsets(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Slices the DataFrame into active target and non-constant feature subsets."""
+        valid_targets = [
+            c for c in self._target_cols if c in df.columns and c not in self._constant_cols
+        ]
+        valid_features = [
+            c for c in self._feature_cols if c in df.columns and c not in self._constant_cols
+        ]
+        return df.loc[:, valid_targets], df.loc[:, valid_features]
+
+
     def _compute_basic_stats(self, df: pd.DataFrame) -> pd.DataFrame:
         """Computes comprehensive descriptive statistics for the numerical features.
 
@@ -92,6 +130,11 @@ class EDAnalyzer(BasePipelineComponent):
         stats["kurtosis"] = df.kurtosis(numeric_only=True)
         stats["unique"] = df.nunique()
         stats["missing_count"] = df.isna().sum()
+
+        if self._generate_plots and self.visualizer:
+            df_targets, df_features = self._get_active_subsets(df)
+            self.visualizer.plot_distributions(df_targets, "target_columns")
+            self.visualizer.plot_distributions(df_features, "feature_columns")
 
         return stats
 
@@ -111,7 +154,7 @@ class EDAnalyzer(BasePipelineComponent):
         total_missing = int(df.isna().sum().sum())
         missing_by_col = df.isna().sum()[df.isna().sum() > 0].to_dict()
         duplicate_rows = int(df.duplicated().sum())
-        constant_cols = [col for col in df.columns if df[col].nunique(dropna=False) <= 1]
+        self._constant_cols = [col for col in df.columns if df[col].nunique(dropna=False) <= 1]
 
         return {
             "num_rows": len(df),
@@ -119,13 +162,13 @@ class EDAnalyzer(BasePipelineComponent):
             "total_missing": total_missing,
             "missing_by_column": missing_by_col,
             "duplicate_rows": duplicate_rows,
-            "constant_columns": constant_cols,
+            "constant_columns": self._constant_cols,
         }
 
 
     def _analyze_correlations(
-            self, df: pd.DataFrame, constant_cols: List[str]
-        ) -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
+        self, df: pd.DataFrame, constant_cols: List[str]
+    ) -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
         """Calculates feature correlations and extracts strongly coupled column pairs.
 
         Reads parameters from config, drops constant columns, and runs correlation logic.
@@ -136,18 +179,19 @@ class EDAnalyzer(BasePipelineComponent):
             constant_cols (List[str]): List of invariant feature names to drop first.
 
         Returns:
-            Tuple[pd.DataFrame, List[Dict[str, Any]]]: A tuple containing the raw
-                correlation matrix and a list of high correlation details.
+            Tuple[pd.DataFrame, List[Dict[str, Any]]]: A tuple containing the raw correlation
+            matrix and a list of high correlation details.
         """
-        method = self.config_manager["pipeline.eda.correlation_method"]
-        threshold = self.config_manager["pipeline.eda.correlation_threshold"]
+        method = self.config_manager.get_param("pipeline.eda.correlation_method", "pearson")
+        threshold = self.config_manager.get_param("pipeline.eda.correlation_threshold", 0.8)
 
         df_valid = df.drop(columns=constant_cols)
         corr_matrix = df_valid.corr(method=method, numeric_only=True)
         high_corr_pairs: List[Dict[str, Any]] = []
 
-        for i in range(0, corr_matrix.shape[1]):
-            for j in range(i + 1, corr_matrix.shape[1]):
+        num_cols = corr_matrix.shape[1]
+        for i in range(0, num_cols):
+            for j in range(i + 1, num_cols):
                 val = corr_matrix.iloc[i, j]
                 if pd.notna(val) and abs(float(val)) >= threshold: # type: ignore
                     high_corr_pairs.append(
@@ -157,6 +201,9 @@ class EDAnalyzer(BasePipelineComponent):
                             "correlation": round(float(val), 6), # type: ignore
                         }
                     )
+
+        if self._generate_plots and self.visualizer:
+            self.visualizer.plot_correlation_matrix(corr_matrix, annot=False)
 
         return (corr_matrix, high_corr_pairs)
 
@@ -174,42 +221,39 @@ class EDAnalyzer(BasePipelineComponent):
         Returns:
             pd.Series: Vector tracking the absolute outlier summation per numeric column.
         """
-        multiplier = self.config_manager["pipeline.eda.iqr_multiplier"]
-
+        multiplier = self.config_manager.get_param("pipeline.eda.iqr_multiplier", 1.5)
         df_valid = df.drop(columns=constant_cols).select_dtypes(include="number")
 
         q1 = df_valid.quantile(0.25)
         q3 = df_valid.quantile(0.75)
         iqr = q3 - q1
+        lower_bound = q1 - (multiplier * iqr)
+        upper_bound = q3 + (multiplier * iqr)
+        outliers = ((df_valid < lower_bound) | (df_valid > upper_bound)).sum()
 
-        is_outlier = (df_valid < (q1 - multiplier * iqr)) | (
-            df_valid > (q3 + multiplier * iqr)
-        )
-        return is_outlier.sum()
+        if self._generate_plots and self.visualizer:
+            df_targets, df_features = self._get_active_subsets(df)
+            self.visualizer.plot_boxplots(df_targets, "target_columns")
+            self.visualizer.plot_boxplots(df_features, "feature_columns")
+
+        return outliers
 
 
     def _save_reports(self) -> None:
         """Persists the collected data analysis reports into JSON structured files.
-
         Checks configuration settings to confirm whether output saving is allowed.
         The routine creates an eda subdirectory and converts frames to JSON format.
-
-        Returns:
-            None: The method performs directory write tasks and returns nothing.
         """
-        if not self.config_manager["pipeline.eda.save_reports"]:
+        if not self.config_manager.get_param("pipeline.eda.save_reports", True):
             self.logger.info(
-                "Saving is turned off. If you want save reports,"
-                " add pipeline.eda.save_reports and set value to `True`."
+            "Saving is turned off. If you want save reports, "
+            "add pipeline.eda.save_reports and set value to True."
             )
             return None
-
-        base_output = self.config_manager["settings.paths.output_dir"]
-
+        base_output = self.config_manager.get_param("settings.paths.output_dir", "output")
         eda_dir = Path(base_output) / "eda"
         eda_dir.mkdir(parents=True, exist_ok=True)
-
-        full_report: Dict[str, Any] = { # Create output dict safely
+        full_report: Dict[str, Any] = {
             "dataset_info": self._quality_report,
             "basic_statistics": (
                 json.loads(self._basic_stats.to_json(orient="index"))
@@ -227,33 +271,29 @@ class EDAnalyzer(BasePipelineComponent):
             file_path = eda_dir / f"{key}.json"
             with open(file_path, mode="w", encoding="utf-8") as file:
                 json.dump(item, file, indent=4, ensure_ascii=False)
+
         self.logger.info("Output saved in: %s", eda_dir)
 
-        return None
 
     def run(self, *args: Any, **kwargs: Any) -> Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]:
         """Triggers the full pipeline data profiling and artifact generation sequence.
 
         Extracts the target dataframe and routes it through statistical subroutines.
         The results are attached to properties, exported to reports, and returned back.
-
         Args:
             *args (Any): Variable positional parameters, expects DataFrame at index 0.
             **kwargs (Any): Variable keyword parameters, currently unsupported.
-
         Returns:
-            Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]: A tuple containing quality
-            report details, basic statistics frame, and the correlation matrix.
+            Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]: A tuple containing quality report
+            details, basic statistics frame, and the correlation matrix.
         """
-        if not isinstance(args[0], pd.DataFrame) or kwargs:
+        if not args or not isinstance(args[0], pd.DataFrame) or kwargs:
             self.logger.warning("Args except for position 0 and kwargs are not implemented yet.")
-
         df: pd.DataFrame = args[0]
-        self._basic_stats = self._compute_basic_stats(df)
+
         self._quality_report = self._check_data_quality(df)
-        (
-            self._correlation_matrix, high_correlations
-        ) = self._analyze_correlations(
+        self._basic_stats = self._compute_basic_stats(df)
+        self._correlation_matrix, high_correlations = self._analyze_correlations(
             df, self._quality_report["constant_columns"]
         )
         self._quality_report["high_correlations"] = high_correlations
@@ -261,5 +301,6 @@ class EDAnalyzer(BasePipelineComponent):
             df, self._quality_report["constant_columns"]
         )
         self._quality_report["outliers_iqr"] = self._outlier_counts.to_dict()
+
         self._save_reports()
         return (self.quality_report, self.basic_stats, self.correlation_matrix)

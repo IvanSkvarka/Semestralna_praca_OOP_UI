@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Union, Optional, Any, List
+from typing import Union, Optional, Any
 import pandas as pd
 import seaborn as sns
 
@@ -7,8 +7,11 @@ from utils.config_manager import ConfigManager # pylint: disable=import-error
 from visualization.base_visualizer import BaseVisualizer # pylint: disable=import-error
 
 class EDAVisualizer(BaseVisualizer):
-    """
-    
+    """A stateless plotting helper used directly by EDAnalyzer subroutines.
+
+    Provides dedicated rendering methods for distributions, boxplots, and
+    correlation matrices without duplicating data filtering or statistical
+    computations performed by EDAnalyzer.
     """
     def __init__(
             self,
@@ -16,111 +19,63 @@ class EDAVisualizer(BaseVisualizer):
             name: Optional[str] = None,
             subfolder: Optional[Union[str, Path]] = "eda"
         ) -> None:
-        """
-        
-        """
-        super().__init__(config_manager, name, subfolder)
-        self._target_cols: List[str] = self.config_manager["data.target_columns"]
-        self._feature_cols: List[str] = self.config_manager["data.feature_columns"]
-        self._corr_method: str = self.config_manager["pipeline.eda.correlation_method"]
-
-    def run(self, *args: Any, **kwargs: Any) -> None:
-        """Executes the full suite of exploratory data analysis visualizations.
-
-        Extracts the input DataFrame and optional precomputed correlation matrix.
-        Filters out missing records and constant columns before rendering
-        distributions, boxplots, and the correlation heatmap.
+        """Initializes the EDA visualizer and configures output paths.
 
         Args:
-            *args (Any): Variable positional arguments; expects DataFrame at index 0
-            and optionally a precomputed correlation DataFrame at index 1.
-            **kwargs (Any): Optional keyword arguments such as `constant_cols`
-            (List[str]) to exclude invariant columns from plotting.
-
-        Returns:
-            None: Renders and exports plots directly to the configured output path.
+            config_manager (ConfigManager): Configuration manager instance.
+            name (str | None): Component name for logging and identification.
+            subfolder (str | Path | None): Target subdirectory for saving EDA plots.
         """
-        if not args or not isinstance(args[0], pd.DataFrame):
-            self.logger.error(
-                "Expected a pandas DataFrame as the first positional argument."
-            )
-            raise ValueError(
-                "Expected a pandas DataFrame as the first positional argument."
-            )
+        super().__init__(config_manager, name, subfolder)
 
-        df: pd.DataFrame = args[0].dropna()
-        constant_cols: List[str] = kwargs.get("constant_cols") or [
-            col for col in df.columns if df[col].nunique(dropna=False) <= 1
-        ]
 
-        corr_matrix: pd.DataFrame = (
-            args[1]
-            if len(args) > 1 and isinstance(args[1], pd.DataFrame)
-            else df.drop(columns=constant_cols, errors="ignore").corr(
-                method=self._corr_method, numeric_only=True # type: ignore
-            )
+    def run(self, *args: Any, **kwargs: Any) -> Any:
+        """Satisfies the abstract BasePipelineComponent interface.
+
+        Note: Plotting is triggered granularly inside EDAnalyzer methods rather
+        than via a monolithic `run()` call.
+        """
+        self.logger.debug(
+            "EDAVisualizer is triggered per-method by EDAnalyzer; standalone run()"
+            " skipped."
         )
-
-        active_features = [col for col in self._feature_cols if col not in constant_cols]
-        active_targets = [col for col in self._target_cols if col not in constant_cols]
-
-        self.plot_distributions(df, active_targets, group_name="target_columns")
-        self.plot_distributions(df, active_features, group_name="feature_columns")
-        self.plot_boxplots(df, active_targets, group_name="target_columns")
-        self.plot_boxplots(df, active_features, group_name="feature_columns")
-        self.plot_correlation_matrix(corr_matrix, annot=False)
 
 
     def plot_distributions(
-        self,
-        df: pd.DataFrame,
-        columns: Union[str, List[str]],
-        group_name: Optional[str] = None,
-        **kwargs: Any,
+        self,df_subset: pd.DataFrame, group_name: str, **kwargs: Any
     ) -> Any:
-        """Renders histograms with Kernel Density Estimation (KDE) for specified columns.
+        """Renders histograms with KDE for the pre-selected DataFrame subset.
 
         Args:
-            df (pd.DataFrame): DataFrame containing the variables to plot.
-            columns (str | List[str]): Configuration key name or list of column
-            names.
-            group_name (str | None): Optional group label for titles and filenames.
+            df_subset (pd.DataFrame): Pre-filtered DataFrame slice to visualize.
+            group_name (str): Group identifier (e.g., 'target_columns').
             **kwargs (Any): Additional keyword arguments forwarded to
             `sns.histplot`.
 
         Returns:
             Any: Output of `_finalize_plot`.
         """
-        kde_default = kwargs.pop("kde", True)
+        kde_default: bool = kwargs.pop("kde", True)
 
         def _draw_hist(series: pd.Series, ax: Any) -> None:
-            has_variance = series.nunique(dropna= True) > 1
-            sns.histplot(series, kde=(kde_default and has_variance), ax=ax, **kwargs) # type: ignore
+            sns.histplot(series, kde=kde_default, ax=ax, **kwargs) # type: ignore
 
         return self._plot_grid(
-            df=df,
-            columns=columns,
+            df_subset=df_subset,
+            group_name=group_name,
             plot_fn=_draw_hist,
             title_prefix="Histogram plot",
             file_suffix="histplot",
-            group_name=group_name,
         )
 
-
     def plot_boxplots(
-        self,
-        df: pd.DataFrame,
-        columns: Union[str, List[str]],
-        group_name: Optional[str] = None,
-        **kwargs: Any,
+        self, df_subset: pd.DataFrame, group_name: str, **kwargs: Any
     ) -> Any:
-        """Renders horizontal box-and-whisker diagrams to inspect spread and outliers.
+        """Renders horizontal box-and-whisker diagrams for outlier inspection.
 
         Args:
-            df (pd.DataFrame): DataFrame containing the variables to plot.
-            columns (str | List[str]): Configuration key name or list of column
-            names.
-            group_name (str | None): Optional group label for titles and filenames.
+            df_subset (pd.DataFrame): Pre-filtered DataFrame slice to visualize.
+            group_name (str): Group identifier (e.g., 'target_columns').
             **kwargs (Any): Additional keyword arguments forwarded to `sns.boxplot`.
 
         Returns:
@@ -131,34 +86,27 @@ class EDAVisualizer(BaseVisualizer):
             sns.boxplot(x=series, orient="h", ax=ax, **kwargs)
 
         return self._plot_grid(
-            df=df,
-            columns=columns,
+            df_subset=df_subset,
+            group_name=group_name,
             plot_fn=_draw_box,
             title_prefix="Box-and-whisker diagram",
             file_suffix="boxplot",
-            group_name=group_name,
         )
 
-
     def plot_correlation_matrix(
-        self,
-        corr_matrix: pd.DataFrame,
-        **kwargs: Any,
+        self, corr_matrix: pd.DataFrame, **kwargs: Any
     ) -> Any:
-        """Renders a square heatmap of the feature and target correlation matrix.
-
-        Maps correlation coefficients across the full [-1, 1] interval centered
-        at zero using a diverging colormap.
+        """Renders a square heatmap from an already computed correlation matrix.
 
         Args:
-            corr_matrix (pd.DataFrame): Symmetric correlation matrix DataFrame.
-            **kwargs (Any): Optional overrides such as `annot` (bool) for cell
-            values.
+            corr_matrix (pd.DataFrame): Precomputed correlation matrix from
+            EDAnalyzer.
+            **kwargs (Any): Optional overrides such as `annot` (bool).
 
         Returns:
             Any: Output of `_finalize_plot`.
         """
-        annot: bool = kwargs.get("annot", True)
+        annot: bool = kwargs.get("annot", False)
 
         fig, axis = self._create_figure(square=True)
 

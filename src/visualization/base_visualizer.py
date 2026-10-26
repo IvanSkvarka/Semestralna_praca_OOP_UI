@@ -1,12 +1,12 @@
-from typing import Union, Any, Dict, Optional, Tuple, Callable, List
+from typing import Union, Any, Dict, Optional, Tuple, Callable
 from abc import abstractmethod
 from pathlib import Path
 import shutil
+import math
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.figure import Figure
 import pandas as pd
-import math
 
 from base import BasePipelineComponent  # pylint: disable=import-error
 from utils.config_manager import ConfigManager  # pylint: disable=import-error
@@ -134,57 +134,47 @@ class BaseVisualizer(BasePipelineComponent):
 
     def _plot_grid(
         self,
-        df: pd.DataFrame,
-        columns: Union[str, List[str]],
+        df_subset: pd.DataFrame,
+        group_name: str,
         plot_fn: Callable[[pd.Series, Any], None],
         title_prefix: str,
         file_suffix: str,
-        group_name: Optional[str] = None,
         n_cols: int = 2,
     ) -> Any:
-        """Helper method that renders a multi-panel grid of univariate plots.
-
-        Resolves the requested column list, constructs a subplot grid, applies
-        the provided plotting callback to each column, removes unused axes,
-        and finalizes the figure.
+        """Renders a multi-panel grid for all columns present in `df_subset`.
 
         Args:
-            df (pd.DataFrame): Source DataFrame containing the data to plot.
-            columns (str | List[str]): Config key suffix (e.g., 'target_columns') or
-            explicit list of column names to visualize.
+            df_subset (pd.DataFrame): Pre-filtered DataFrame containing only the
+            columns to be plotted.
+            group_name (str): Label used in the figure suptitle and output filename
+            (e.g., 'target_columns' or 'feature_columns').
             plot_fn (Callable): Callback function accepting (Series, Axis) to draw.
             title_prefix (str): Prefix string for the figure suptitle.
             file_suffix (str): Suffix appended to the exported filename.
-            group_name (str | None): Identifier used for title and filename when
-            `columns` is passed as a list.
             n_cols (int): Number of columns in the subplot grid. Defaults to 2.
 
         Returns:
             Any: Output returned by `self._finalize_plot`.
         """
-        if isinstance(columns, str):
-            cols_to_plot: List[str] = self.config_manager[f"data.{columns}"]
-            label_name = columns
-        else:
-            cols_to_plot = columns
-            label_name = group_name or "selected_columns"
+        columns_to_plot = df_subset.columns.to_list()
+        if not columns_to_plot:
+            self.logger.warning("No columns provided to plot for '%s'.", group_name)
+            return None
 
-        cols_to_plot = [col for col in cols_to_plot if col in df.columns]
-        n_rows = math.ceil(len(cols_to_plot) / n_cols)
-
+        n_rows = math.ceil(len(columns_to_plot) / n_cols)
         fig, axes = self._create_figure(n_rows, n_cols)
 
         if not self._exportable:
-            fig.suptitle(self._build_label(prefix=f"{title_prefix} of {label_name}"))  # type: ignore
+            fig.suptitle(self._build_label(prefix=f"{title_prefix} of {group_name}"))  # type: ignore
 
-        for idx, col in enumerate(cols_to_plot):
-            plot_fn(df[col], axes[idx])
+        for idx, col in enumerate(columns_to_plot):
+            plot_fn(df_subset[col], axes[idx])
             axes[idx].set_xlabel(self._build_label(col, include_unit=True))
 
-        for i in range(len(cols_to_plot), len(axes)):
+        for i in range(len(columns_to_plot), len(axes)):
             fig.delaxes(axes[i])
 
-        return self._finalize_plot(fig, f"{label_name}_{file_suffix}")
+        return self._finalize_plot(fig, f"{group_name}_{file_suffix}")
 
 
 

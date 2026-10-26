@@ -37,17 +37,7 @@ class DataLoader(BasePipelineComponent):
 
     @property
     def data(self) -> pd.DataFrame:
-        """Provides read-only access to the completely loaded data frame matrix.
-
-        Checks whether the internal dataset placeholder is currently empty or unassigned.
-        If data has not been processed yet, it logs a severe state error and raises a runtime exception.
-
-        Returns:
-            pd.DataFrame: The validated underlying Pandas DataFrame structure.
-
-        Raises:
-            RuntimeError: If data has not been initialized via run() method yet.
-        """
+        """Provides read-only access to the completely loaded data frame matrix."""
         if self._data is None or self._data.empty:
             err_msg = "The data has not been loaded yet." \
                       " First, call the `run()` method or an instance of the object."
@@ -58,27 +48,13 @@ class DataLoader(BasePipelineComponent):
 
     @property
     def target_columns(self) -> List[str]:
-        """Provides read-only access the current list of designated target column identifiers.
-
-        Generates a fresh list representation of the registered target label parameters.
-        This provides external callers with visibility into columns used for modeling predictions.
-
-        Returns:
-            List[str]: A list containing the target column names.
-        """
+        """Provides read-only access the current list of designated target column identifiers."""
         return list(self._target_columns)
 
 
     @property
     def feature_columns(self) -> List[str]:
-        """Provides the list of active predictive feature column names.
-
-        Lazily evaluates features if no explicit column listing was defined in configuration.
-        The method filters out all current target identifiers from the underlying dataset schema.
-
-        Returns:
-            List[str]: A list containing the designated training feature names.
-        """
+        """Provides the list of active predictive feature column names."""
         if self._feature_columns is None:
             self._feature_columns = [col for col in self.data.columns
                                      if col not in self._target_columns]
@@ -88,27 +64,13 @@ class DataLoader(BasePipelineComponent):
 
     @property
     def feature_data(self) -> pd.DataFrame:
-        """Slices and returns the feature matrix from the loaded dataset.
-
-        Queries the internal data frame utilizing the resolved feature column list.
-        This isolates the independent variable attributes required for preprocessing inputs.
-
-        Returns:
-            pd.DataFrame: A data frame subset containing only training features.
-        """
+        """Slices and returns the feature matrix from the loaded dataset.s"""
         return self.data[self.feature_columns]
 
 
     @property
     def target_data(self) -> pd.DataFrame:
-        """Slices and returns the target vector matrix from the loaded dataset.
-
-        Queries the internal data frame utilizing the verified target column identifier list.
-        This isolates the required dependent label attributes.
-
-        Returns:
-            pd.DataFrame: A data frame subset containing only target labels.
-        """
+        """Slices and returns the target vector matrix from the loaded dataset."""
         return self.data[self.target_columns]
 
 

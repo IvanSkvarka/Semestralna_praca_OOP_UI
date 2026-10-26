@@ -7,3 +7,4 @@ font_family: "serif"
 font_size: 12
 tick_scale: 0.8
 legend_scale: 0.6
+use_tex: true

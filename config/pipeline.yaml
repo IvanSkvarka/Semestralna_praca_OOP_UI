@@ -3,3 +3,4 @@ eda:
   correlation_threshold: 0.85         # prah pre upozornenie na multikolinearitu
   iqr_multiplier: 1.5                 # koeficient pre detekciu outlierov (1.5 * IQR)
   save_reports: true                  # ulozit tabulky so statistikami do report/
+  generate_plots: true
