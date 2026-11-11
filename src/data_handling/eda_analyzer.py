@@ -1,306 +1,263 @@
-from typing import Union, Optional, Any, Dict, Tuple, List
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 import json
+import numpy as np
 import pandas as pd
 
 from base import BasePipelineComponent  # pylint: disable=import-error
 from utils.config_manager import ConfigManager  # pylint: disable=import-error
 from visualization.eda_visualizer import EDAVisualizer  # pylint: disable=import-error
 
-ERR_MSG = "EDAnalyzer has not been run yet." \
-          "First, call the `run()` method or an instance of the object."
+ERR_MSG = "EDAnalyzer has not been run yet. First, call the `run()` method or call the instance."
+
 
 
 class EDAnalyzer(BasePipelineComponent):
-    """A pipeline component that performs automated exploratory data analysis.
+    """A pipeline component that performs exploratory data analysis.
 
-    Computes descriptive statistics, checks data quality, and looks for anomalies.
-    The class automatically detects linear correlations and flags statistical outliers.
-    All generated analytical matrices can be persisted directly to JSON formatted reports.
+    Computes descriptive statistics, data quality metrics, correlations and IQR outliers.
+    Optionally renders plots and saves the results as JSON reports.
+    The results are available through read-only properties after `run()`.
     """
-    def __init__(
-        self, config_manager: ConfigManager, name: Union[str, None] = None
-    ) -> None:
-        """Initializes the analyzer component and sets up empty internal report placeholders.
-
-        Invokes the parent constructor to register shared infrastructure settings.
-        The internal data attributes for storing statistical matrices are set to None.
-        These placeholders are dynamically populated once the data frame analysis runs.
+    def __init__(self, config_manager: ConfigManager, name: Optional[str] = None) -> None:
+        """Reads the column lists and creates the visualizer if plotting is enabled.
 
         Args:
             config_manager (ConfigManager): Configuration manager instance.
-            name (str | None): Module name.
+            name (str | None): Component name.
         """
         super().__init__(config_manager, name)
         self._basic_stats: Optional[pd.DataFrame] = None
         self._correlation_matrix: Optional[pd.DataFrame] = None
         self._quality_report: Optional[Dict[str, Any]] = None
         self._outlier_counts: Optional[pd.Series] = None
-        self._constant_cols: List[str] = []
 
-        self._target_cols: List[str] = self.config_manager.get_param(
-            "data.target_columns", []
-        )
-        self._feature_cols: List[str] = self.config_manager.get_param(
-            "data.feature_columns", []
-        )
-        self._generate_plots: bool = self.config_manager.get_param(
-            "pipeline.eda.generate_plots", True
-        )
+        self._target_cols: List[str] = self.config_manager.get_param("data.target_columns", [])
+        self._feature_cols: List[str] = self.config_manager.get_param("data.feature_columns", [])
         self._visualizer: Optional[EDAVisualizer] = (
             EDAVisualizer(config_manager, name=f"{self.name}Visualizer")
-            if self._generate_plots
+            if self.config_manager.get_param("pipeline.eda.generate_plots", True)
             else None
         )
 
 
 
     @property
-    def visualizer(self) -> Union[EDAVisualizer, None]:
-        """Provides read-only access to the internal EDAVisualizer component."""
-        if self._generate_plots:
-            return self._visualizer
-        else:
-            self.logger.error("Visualization disabled.")
-            raise ValueError("Visualization disabled.")
-
-
-    @property
     def basic_stats(self) -> pd.DataFrame:
-        """Provides read-only access to the calculated basic descriptive statistics table."""
+        """Provides the descriptive statistics table.
+
+        Raises:
+            RuntimeError: If `run()` has not been called yet.
+        """
         if self._basic_stats is None:
-            self.logger.error(ERR_MSG)
             raise RuntimeError(ERR_MSG)
         return self._basic_stats
 
 
     @property
     def correlation_matrix(self) -> pd.DataFrame:
-        """Provides read-only access to the calculated linear feature correlation matrix."""
+        """Provides the correlation matrix of the non-constant columns.
+
+        Raises:
+            RuntimeError: If `run()` has not been called yet.
+        """
         if self._correlation_matrix is None:
-            self.logger.error(ERR_MSG)
             raise RuntimeError(ERR_MSG)
         return self._correlation_matrix
 
 
     @property
     def quality_report(self) -> Dict[str, Any]:
-        """Provides read-only access to the generated dictionary of data quality metrics."""
+        """Provides the data quality report.
+
+        Raises:
+            RuntimeError: If `run()` has not been called yet.
+        """
         if self._quality_report is None:
-            self.logger.error(ERR_MSG)
             raise RuntimeError(ERR_MSG)
         return self._quality_report
 
 
     @property
     def outlier_counts(self) -> pd.Series:
-        """Provides read-only access to the aggregated outlier count per numeric column."""
+        """Provides the number of IQR outliers per numeric non-constant column.
+
+        Raises:
+            RuntimeError: If `run()` has not been called yet.
+        """
         if self._outlier_counts is None:
-            self.logger.error(ERR_MSG)
             raise RuntimeError(ERR_MSG)
         return self._outlier_counts
 
 
 
-    def _get_active_subsets(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Slices the DataFrame into active target and non-constant feature subsets."""
-        valid_targets = [
-            c for c in self._target_cols if c in df.columns and c not in self._constant_cols
-        ]
-        valid_features = [
-            c for c in self._feature_cols if c in df.columns and c not in self._constant_cols
-        ]
-        return df.loc[:, valid_targets], df.loc[:, valid_features]
-
-
-    def _compute_basic_stats(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Computes comprehensive descriptive statistics for the numerical features.
-
-        Transposes standard describe metrics and attaches skewness and kurtosis measurements.
-        The routine also aggregates exact unique value counts and registers total missing rows.
+    @staticmethod
+    def _compute_basic_stats(df: pd.DataFrame) -> pd.DataFrame:
+        """Computes descriptive statistics for each numeric column.
 
         Args:
-            df (pd.DataFrame): The source dataframe containing records to analyze.
+            df (pd.DataFrame): The analyzed data.
 
         Returns:
-            pd.DataFrame: A matrix of calculated statistical metrics indexed by column.
+            pd.DataFrame: One row per column with the `describe()` metrics, skewness,
+            kurtosis, number of unique values (NaN counts as a value) and missing count.
         """
         stats = df.describe().T
         stats["skew"] = df.skew(numeric_only=True)
         stats["kurtosis"] = df.kurtosis(numeric_only=True)
-        stats["unique"] = df.nunique()
+        stats["unique"] = df.nunique(dropna=False)
         stats["missing_count"] = df.isna().sum()
-
-        if self._generate_plots and self.visualizer:
-            df_targets, df_features = self._get_active_subsets(df)
-            self.visualizer.plot_distributions(df_targets, "target_columns")
-            self.visualizer.plot_distributions(df_features, "feature_columns")
-
         return stats
 
 
-    def _check_data_quality(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Scans the data frame structure to generate integrity and quality metadata.
-
-        Calculates row and column counts alongside overall missing record occurrences.
-        The method isolates completely constant features and sums up exact duplicate rows.
+    @staticmethod
+    def _check_data_quality(df: pd.DataFrame, stats: pd.DataFrame) -> Dict[str, Any]:
+        """Collects data quality metrics.
 
         Args:
-            df (pd.DataFrame): The target data frame structure evaluated for quality.
+            df (pd.DataFrame): The analyzed data.
+            stats (pd.DataFrame): Output of `_compute_basic_stats`, reused for the
+                missing and unique counts.
 
         Returns:
-            Dict[str, Any]: A mapping containing quantified structural quality metrics.
+            Dict[str, Any]: Row and column counts, missing values, duplicate rows
+            and the names of constant columns.
         """
-        total_missing = int(df.isna().sum().sum())
-        missing_by_col = df.isna().sum()[df.isna().sum() > 0].to_dict()
-        duplicate_rows = int(df.duplicated().sum())
-        self._constant_cols = [col for col in df.columns if df[col].nunique(dropna=False) <= 1]
-
+        missing = stats["missing_count"]
         return {
             "num_rows": len(df),
             "num_columns": df.shape[1],
-            "total_missing": total_missing,
-            "missing_by_column": missing_by_col,
-            "duplicate_rows": duplicate_rows,
-            "constant_columns": self._constant_cols,
+            "total_missing": int(missing.sum()),
+            "missing_by_column": missing[missing > 0].to_dict(),
+            "duplicate_rows": int(df.duplicated().sum()),
+            "constant_columns": stats.index[stats["unique"] <= 1].to_list(),
         }
+
 
 
     def _analyze_correlations(
         self, df: pd.DataFrame, constant_cols: List[str]
     ) -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
-        """Calculates feature correlations and extracts strongly coupled column pairs.
-
-        Reads parameters from config, drops constant columns, and runs correlation logic.
-        The method iterates over the matrix triangle to flag pairs exceeding the threshold.
+        """Computes the correlation matrix and finds strongly correlated column pairs.
 
         Args:
-            df (pd.DataFrame): Data frame structure containing target numeric data.
-            constant_cols (List[str]): List of invariant feature names to drop first.
+            df (pd.DataFrame): The analyzed data.
+            constant_cols (List[str]): Columns excluded from the analysis.
 
         Returns:
-            Tuple[pd.DataFrame, List[Dict[str, Any]]]: A tuple containing the raw correlation
-            matrix and a list of high correlation details.
+            Tuple[pd.DataFrame, List[Dict[str, Any]]]: The correlation matrix and the pairs
+            whose absolute correlation reaches `pipeline.eda.correlation_threshold`.
         """
         method = self.config_manager.get_param("pipeline.eda.correlation_method", "pearson")
         threshold = self.config_manager.get_param("pipeline.eda.correlation_threshold", 0.8)
 
-        df_valid = df.drop(columns=constant_cols)
-        corr_matrix = df_valid.corr(method=method, numeric_only=True)
-        high_corr_pairs: List[Dict[str, Any]] = []
+        corr_matrix = df.drop(columns=constant_cols).corr(method=method, numeric_only=True)
 
-        num_cols = corr_matrix.shape[1]
-        for i in range(0, num_cols):
-            for j in range(i + 1, num_cols):
-                val = corr_matrix.iloc[i, j]
-                if pd.notna(val) and abs(float(val)) >= threshold: # type: ignore
-                    high_corr_pairs.append(
-                        {
-                            "feature_1": str(corr_matrix.columns[i]),
-                            "feature_2": str(corr_matrix.columns[j]),
-                            "correlation": round(float(val), 6), # type: ignore
-                        }
-                    )
+        values = corr_matrix.to_numpy()
+        rows, cols = np.triu_indices_from(values, k=1)
+        pair_values = values[rows, cols]
+        strong = np.abs(pair_values) >= threshold
 
-        if self._generate_plots and self.visualizer:
-            self.visualizer.plot_correlation_matrix(corr_matrix, annot=False)
-
-        return (corr_matrix, high_corr_pairs)
+        names: pd.Index = corr_matrix.columns
+        high_corr_pairs: list[dict[str, Any]] = [
+            {
+                "feature_1": str(names[i]),
+                "feature_2": str(names[j]),
+                "correlation": round(float(value), 6),
+            }
+            for i, j, value in zip(rows[strong], cols[strong], pair_values[strong])
+        ]
+        return corr_matrix, high_corr_pairs
 
 
     def _detect_outliers_iqr(self, df: pd.DataFrame, constant_cols: List[str]) -> pd.Series:
-        """Counts numeric statistical outliers utilizing the Interquartile Range method.
+        """Counts outliers per numeric column using the interquartile range rule.
 
-        Isolates non-constant numeric series and retrieves the custom multiplier boundary.
-        The logic establishes upper and lower fences to flag values falling outside ranges.
+        A value is an outlier if it lies more than `pipeline.eda.iqr_multiplier` times
+        the IQR below the first or above the third quartile.
 
         Args:
-            df (pd.DataFrame): Data frame containing values evaluated for anomalies.
-            constant_cols (List[str]): List of column labels excluded from inspection.
+            df (pd.DataFrame): The analyzed data.
+            constant_cols (List[str]): Columns excluded from the analysis.
 
         Returns:
-            pd.Series: Vector tracking the absolute outlier summation per numeric column.
+            pd.Series: Number of outliers indexed by column name.
         """
         multiplier = self.config_manager.get_param("pipeline.eda.iqr_multiplier", 1.5)
-        df_valid = df.drop(columns=constant_cols).select_dtypes(include="number")
+        numeric = df.drop(columns=constant_cols).select_dtypes(include="number")
 
-        q1 = df_valid.quantile(0.25)
-        q3 = df_valid.quantile(0.75)
-        iqr = q3 - q1
-        lower_bound = q1 - (multiplier * iqr)
-        upper_bound = q3 + (multiplier * iqr)
-        outliers = ((df_valid < lower_bound) | (df_valid > upper_bound)).sum()
+        values = numeric.to_numpy()
+        q1, q3 = np.nanquantile(values, [0.25, 0.75], axis=0)
+        margin = multiplier * (q3 - q1)
+        is_outlier = (values < q1 - margin) | (values > q3 + margin)
+        return pd.Series(is_outlier.sum(axis=0), index=numeric.columns)
 
-        if self._generate_plots and self.visualizer:
-            df_targets, df_features = self._get_active_subsets(df)
-            self.visualizer.plot_boxplots(df_targets, "target_columns")
-            self.visualizer.plot_boxplots(df_features, "feature_columns")
 
-        return outliers
+    def _plot(self, df: pd.DataFrame, constant_cols: List[str]) -> None:
+        """Renders distributions, correlation matrix and boxplots, if plotting is enabled.
+
+        Args:
+            df (pd.DataFrame): The analyzed data.
+            constant_cols (List[str]): Columns excluded from the plots.
+        """
+        if self._visualizer is None:
+            return
+
+        constant = set(constant_cols)
+        targets = df[[c for c in self._target_cols if c not in constant]]
+        features = df[[c for c in self._feature_cols if c not in constant]]
+
+        self._visualizer.plot_distributions(targets, "target_columns")
+        self._visualizer.plot_distributions(features, "feature_columns")
+        self._visualizer.plot_correlation_matrix(self.correlation_matrix)
+        self._visualizer.plot_boxplots(targets, "target_columns")
+        self._visualizer.plot_boxplots(features, "feature_columns")
 
 
     def _save_reports(self) -> None:
-        """Persists the collected data analysis reports into JSON structured files.
-        Checks configuration settings to confirm whether output saving is allowed.
-        The routine creates an eda subdirectory and converts frames to JSON format.
+        """Saves the quality report, statistics and correlations as JSON files.
+
+        Does nothing if `pipeline.eda.save_reports` is false. The files are written
+        to the `eda` subdirectory of `settings.paths.output_dir`.
         """
         if not self.config_manager.get_param("pipeline.eda.save_reports", True):
-            self.logger.info(
-            "Saving is turned off. If you want save reports, "
-            "add pipeline.eda.save_reports and set value to True."
-            )
-            return None
-        base_output = self.config_manager.get_param("settings.paths.output_dir", "output")
-        eda_dir = Path(base_output) / "eda"
+            return
+
+        eda_dir = Path(self.config_manager.get_param("settings.paths.output_dir", "output")) / "eda"
         eda_dir.mkdir(parents=True, exist_ok=True)
-        full_report: Dict[str, Any] = {
-            "dataset_info": self._quality_report,
-            "basic_statistics": (
-                json.loads(self._basic_stats.to_json(orient="index"))
-                if self._basic_stats is not None
-                else {}
-            ),
-            "correlation_matrix": (
-                json.loads(self._correlation_matrix.to_json(orient="index"))
-                if self._correlation_matrix is not None
-                else {}
-            ),
+
+        reports: Dict[str, Any] = {
+            "dataset_info": self.quality_report,
+            "basic_statistics": json.loads(self.basic_stats.to_json(orient="index")),
+            "correlation_matrix": json.loads(self.correlation_matrix.to_json(orient="index")),
         }
-
-        for key, item in full_report.items():
-            file_path = eda_dir / f"{key}.json"
-            with open(file_path, mode="w", encoding="utf-8") as file:
-                json.dump(item, file, indent=4, ensure_ascii=False)
-
-        self.logger.info("Output saved in: %s", eda_dir)
+        for key, report in reports.items():
+            with open(eda_dir / f"{key}.json", mode="w", encoding="utf-8") as file:
+                json.dump(report, file, indent=4, ensure_ascii=False)
 
 
-    def run(self, *args: Any, **kwargs: Any) -> Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]:
-        """Triggers the full pipeline data profiling and artifact generation sequence.
 
-        Extracts the target dataframe and routes it through statistical subroutines.
-        The results are attached to properties, exported to reports, and returned back.
+    def run(self, df: pd.DataFrame) -> Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]:
+        """Runs the exploratory analysis, renders the plots and saves the reports.
+
         Args:
-            *args (Any): Variable positional parameters, expects DataFrame at index 0.
-            **kwargs (Any): Variable keyword parameters, currently unsupported.
+            df (pd.DataFrame): The data to analyze.
+
         Returns:
-            Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]: A tuple containing quality report
-            details, basic statistics frame, and the correlation matrix.
+            Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]: The quality report,
+            the descriptive statistics and the correlation matrix.
         """
-        if not args or not isinstance(args[0], pd.DataFrame) or kwargs:
-            self.logger.warning("Args except for position 0 and kwargs are not implemented yet.")
-        df: pd.DataFrame = args[0]
-
-        self._quality_report = self._check_data_quality(df)
         self._basic_stats = self._compute_basic_stats(df)
-        self._correlation_matrix, high_correlations = self._analyze_correlations(
-            df, self._quality_report["constant_columns"]
-        )
-        self._quality_report["high_correlations"] = high_correlations
-        self._outlier_counts = self._detect_outliers_iqr(
-            df, self._quality_report["constant_columns"]
-        )
-        self._quality_report["outliers_iqr"] = self._outlier_counts.to_dict()
+        quality_report = self._check_data_quality(df, self._basic_stats)
+        constant_cols = quality_report["constant_columns"]
 
+        self._correlation_matrix, quality_report["high_correlations"] = (
+            self._analyze_correlations(df, constant_cols)
+        )
+        self._outlier_counts = self._detect_outliers_iqr(df, constant_cols)
+        quality_report["outliers_iqr"] = self._outlier_counts.to_dict()
+        self._quality_report = quality_report
+
+        self._plot(df, constant_cols)
         self._save_reports()
-        return (self.quality_report, self.basic_stats, self.correlation_matrix)
+        return self._quality_report, self._basic_stats, self._correlation_matrix

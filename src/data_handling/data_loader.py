@@ -1,140 +1,107 @@
-from typing import Union, List, Optional, Any
+from typing import Union, List, Optional
+from numbers import Integral
 from pathlib import Path
 import pandas as pd
 
 from base import BasePipelineComponent # pylint: disable=import-error
 from utils.config_manager import ConfigManager # pylint: disable=import-error
 
+NOT_LOADED_MSG = "The data has not been loaded yet." \
+                 " First, call the `run()` method or call the instance."
 
 
 class DataLoader(BasePipelineComponent):
-    """A pipeline component responsible for loading and validating tabular datasets.
+    """A pipeline component that loads and validates the raw CSV dataset.
 
-    Reads raw CSV files from paths specified in the shared configuration manager.
-    The component dynamically extracts target and feature column sets from settings.
-    Encapsulates the structural dataset matrix and provides safe slice access.
+    The file path and the column names are read from the configuration.
+    The loaded data frame is available through read-only properties after `run()`.
     """
-    def __init__(self, config_manager: ConfigManager, name: Union[str, None] = None) -> None:
-        """Initializes the data loader component and resolves data storage paths.
+    def __init__(self, config_manager: ConfigManager, name: Optional[str] = None) -> None:
+        """Reads the data path and the column lists from the configuration.
 
-        Invokes the base component constructor and extracts specific dataset configurations.
-        The method parses target columns and resolves optional explicit feature requirements.
-        Internal data storage remains uninitialized until the component is explicitly executed.
+        If `data.feature_columns` is empty, all columns that are not targets
+        are used as features once the data is loaded.
 
         Args:
             config_manager (ConfigManager): Configuration manager instance.
-            name (str | None): Module name.
+            name (str | None): Component name.
         """
         super().__init__(config_manager, name)
         self._file_path = Path(self.config_manager["settings.paths.raw_data"])
-        self._target_columns = list(self.config_manager["data.target_columns"])
-        _feature_columns = self.config_manager["data.feature_columns"]
-        self._feature_columns = list(_feature_columns) if _feature_columns else None
-
+        self._target_columns: List[str] = list(self.config_manager["data.target_columns"])
+        feature_columns = self.config_manager["data.feature_columns"]
+        self._feature_columns: Optional[List[str]] = (
+            list(feature_columns) if feature_columns else None
+        )
         self._data: Optional[pd.DataFrame] = None
 
 
 
     @property
     def data(self) -> pd.DataFrame:
-        """Provides read-only access to the completely loaded data frame matrix."""
-        if self._data is None or self._data.empty:
-            err_msg = "The data has not been loaded yet." \
-                      " First, call the `run()` method or an instance of the object."
-            self.logger.error(err_msg)
-            raise RuntimeError(err_msg)
+        """Provides read-only access to the loaded data frame.
+
+        Raises:
+            RuntimeError: If the data has not been loaded yet.
+        """
+        if self._data is None:
+            raise RuntimeError(NOT_LOADED_MSG)
         return self._data
 
 
     @property
     def target_columns(self) -> List[str]:
-        """Provides read-only access the current list of designated target column identifiers."""
+        """Provides a copy of the target column names."""
         return list(self._target_columns)
 
 
     @property
     def feature_columns(self) -> List[str]:
-        """Provides the list of active predictive feature column names."""
-        if self._feature_columns is None:
-            self._feature_columns = [col for col in self.data.columns
-                                     if col not in self._target_columns]
+        """Provides a copy of the feature column names.
 
+        Raises:
+            RuntimeError: If no feature columns are configured and the data has not been loaded.
+        """
+        if self._feature_columns is None:
+            raise RuntimeError(NOT_LOADED_MSG)
         return list(self._feature_columns)
 
 
     @property
     def feature_data(self) -> pd.DataFrame:
-        """Slices and returns the feature matrix from the loaded dataset.s"""
+        """Provides the feature columns of the loaded data."""
         return self.data[self.feature_columns]
 
 
     @property
     def target_data(self) -> pd.DataFrame:
-        """Slices and returns the target vector matrix from the loaded dataset."""
+        """Provides the target columns of the loaded data."""
         return self.data[self.target_columns]
 
 
-
-    def _validate_dataframe(self, df: pd.DataFrame) -> None:
-        """Validates the structural integrity and columns of the loaded data frame.
-
-        Raises errors for empty files and checks for missing targets or features.
-        The method prints warnings and dynamically drops columns not present in the layout.
-
-        Args:
-            df (pd.DataFrame): The raw dataframe instance loaded from storage.
-
-        Raises:
-            ValueError: If the passed dataframe contains zero data entries.
-        """
-        if df.empty:
-            self.logger.error("Loaded dataset is empty.")
-            raise ValueError("Loaded dataset is empty.")
-
-        missing_targets = [col for col in self._target_columns if col not in df.columns]
-        if missing_targets:
-            self.logger.warning("Missing target columns in dataset: %s. Dropped.", missing_targets)
-            self._target_columns = [col for col in self._target_columns if col in df.columns]
-
-        if self._feature_columns is not None:
-            # NOTE: Overwrite of `missing_targets`
-            missing_targets = [col for col in self._feature_columns if col not in df.columns]
-            if missing_targets:
-                self.logger.warning(
-                    "Missing feature columns in dataset: %s. Dropped.", missing_targets
-                )
-                self._feature_columns = [col for col in self._feature_columns if col in df.columns]
-
-
-    def run(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
-        """Executes the complete CSV file retrieval and validation routine.
-
-        Verifies physical file existence on disk before triggering the parsing layer.
-        The method reads comma-separated inputs, runs validations, and populates states.
-
-        Args:
-            *args (Any): Variable keyword parameters, currently unsupported.
-            **kwargs (Any): Variable keyword parameters, currently unsupported.
+    def run(self) -> pd.DataFrame:
+        """Loads the CSV file and checks it against the configured columns.
 
         Returns:
-            pd.DataFrame: The completely parsed and structurally verified data structure.
+            pd.DataFrame: The loaded data frame.
 
         Raises:
-            FileNotFoundError: If the data file path does not point to a valid resource.
+            FileNotFoundError: If the CSV file does not exist.
+            ValueError: If the file is empty or configured columns are missing in it.
         """
-        if not self._file_path.exists():
-            self.logger.error("Data file not found: %s.", self._file_path)
-            raise FileNotFoundError(f"Data file not found: {self._file_path}")
-
-        if args or kwargs:
-            self.logger.warning("Args and kwargs are not implemented yet.")
-
         df = pd.read_csv(self._file_path)
-        self._validate_dataframe(df)
+        if df.empty:
+            raise ValueError(f"Loaded dataset '{self._file_path}' is empty.")
+
+        if self._feature_columns is None:
+            self._feature_columns = [c for c in df.columns if c not in self._target_columns]
+
+        missing = [c for c in self._target_columns + self._feature_columns if c not in df.columns]
+        if missing:
+            raise ValueError(f"Columns {missing} from the configuration are missing in the data.")
 
         self._data = df
-        self.logger.info("Data %s successfully loaded.", df.shape)
-        return self._data
+        return df
 
 
 
@@ -144,20 +111,19 @@ class DataLoader(BasePipelineComponent):
 
 
     def __getitem__(self, key: Union[int, slice, str, List[str]]) -> Union[pd.Series, pd.DataFrame]:
-        """Enables direct index and key slice routing over the dataset.
+        """Selects rows by position or columns by name.
 
         Args:
-            key (int | slice | str | List[str]): The target index row or column label selection.
+            key (int | slice | str | List[str]): Row position or slice, or column name(s).
 
         Returns:
-            Union[pd.Series, pd.DataFrame]: The extracted row series or column slice projection.
+            pd.Series | pd.DataFrame: The selected row(s) or column(s).
 
         Raises:
-            TypeError: If the supplied index key does not match any valid slice types.
+            TypeError: If the key type is not supported.
         """
-        if isinstance(key, (int, slice)):
+        if isinstance(key, (Integral, slice)):
             return self.data.iloc[key]
-        elif isinstance(key, (str, list)): #type: ignore
+        if isinstance(key, (str, list)):
             return self.data[key]
-        else:
-            raise TypeError(f"Unsupported index type: {type(key).__name__}")
+        raise TypeError(f"Unsupported index type: {type(key).__name__}")

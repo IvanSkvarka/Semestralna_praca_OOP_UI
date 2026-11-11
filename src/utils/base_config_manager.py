@@ -1,77 +1,68 @@
-from typing import Any, Dict, Union
+from typing import Any, Dict, List, Union
 from pathlib import Path
 from abc import ABC, abstractmethod
 
 
 
 class BaseConfigManager(ABC):
-    """An abstract base class for managing system setup profiles and parameter retrieval.
+    """An abstract base class for configuration managers.
 
-    Establishes a centralized configuration directory context used for resolving settings.
-    The class defines standardized lookup interfaces and dictionary access routing protocols.
-    Provides a framework that underlying implementations inherit to safely pull key pairs.
+    Stores the configuration directory and the loaded configuration values.
+    Subclasses implement loading and parameter lookup, while this class adds
+    dictionary-style access: ``manager["a.b"]`` and ``"a.b" in manager``.
     """
     def __init__(self, config_dir: Union[str, Path]) -> None:
-        """Initializes the base configuration manager and validates the reference path.
-
-        Converts the input directory path to a standard object and checks its presence on disk.
-        An empty internal dictionary placeholder is initialized to record future settings maps.
+        """Initializes the manager and checks that the configuration directory exists.
 
         Args:
-            config_dir (str | Path): The system path pointing to the configuration directory.
+            config_dir (str | Path): Path to the configuration directory.
 
         Raises:
-            FileNotFoundError: If the provided directory path does not exist or is not a directory.
+            FileNotFoundError: If the path does not exist or is not a directory.
         """
         self.config_dir = Path(config_dir)
         if not self.config_dir.is_dir():
             raise FileNotFoundError(f"Configuration directory '{self.config_dir}' not found.")
-        
+
         self._config: Dict[str, Any] = {}
 
 
 
     @abstractmethod
-    def load_config(self, config_name: str) -> None:
-        """Loads a specific configuration target source file into the manager storage memory."""
+    def load_config(self, config_name: Union[str, List[str]]) -> None:
+        """Loads one or more configuration files into the manager."""
 
     @abstractmethod
     def get_param(self, key: str, default: Any = None) -> Any:
-        """Retrieves a configuration value using a specified key or falls back to a default."""
+        """Returns the value stored under `key`, or `default` if the key does not exist."""
 
 
 
     def __getitem__(self, key: str) -> Any:
-        """Retrieves a configuration parameter value using index key bracket notation.
+        """Returns the value stored under `key`, or None if the key does not exist.
 
         Args:
-            key (str): The structural parameter notation key string queried from outside.
+            key (str): Parameter key, in dot notation for nested values.
 
         Returns:
-            Any: The found configuration entry data or None if the parameter does not exist.
+            Any: The stored value or None.
         """
-        return self.get_param(key, None)
+        return self.get_param(key)
 
     def __contains__(self, key: str) -> bool:
-        """Checks if a specific configuration parameter key exists inside the current state.
+        """Checks whether a parameter exists, even if its stored value is None.
 
         Args:
-            key (str): The parameter target indicator path evaluated for actual existence.
+            key (str): Parameter key, in dot notation for nested values.
 
         Returns:
-            bool: True if the key is registered in configurations, False otherwise.
+            bool: True if the key exists, False otherwise.
         """
-        try:
-            self.get_param(key)
-            return True
-        except KeyError:
-            return False
+        return self.get_param(key, object()) is not object()
 
-    def __repr__(self):
-        """Generates an informative text string layout representing the instance state.
-
-        Returns:
-            str: A formatted debug string containing instance attributes and memory keys.
-        """
-        loaded = list(self._config.keys())
-        return f"<ConfigManager(config_dir='{self.config_dir}', loaded={loaded})>"
+    def __repr__(self) -> str:
+        """Returns a text representation with the config directory and loaded files."""
+        return (
+            f"<{self.__class__.__name__}(config_dir='{self.config_dir}', "
+            f"loaded={list(self._config)})>"
+        )

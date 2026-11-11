@@ -1,65 +1,54 @@
-from typing import Any, Dict, Union, List
-from pathlib import Path
+from typing import Any, List, Union
 import warnings
 import yaml
-from yaml import CSafeLoader as SafeLoader
 
 from .base_config_manager import BaseConfigManager
 
 
 
 class ConfigManager(BaseConfigManager):
-    """A concrete configuration manager that processes and serves structured YAML profile files.
+    """A configuration manager that reads YAML files from the configuration directory.
 
-    Implements the base management interface to load configuration assets from local disk paths.
-    The class parses standard files using an optimized C-based safe loader for memory efficiency.
-    Resolves multi-level nested parameters by navigating internal storage maps via dot notation.
+    Each file is stored under its file name without extension, so the value
+    ``a: {b: 1}`` loaded from ``settings.yaml`` is available as ``settings.a.b``.
     """
     def load_config(self, config_name: Union[str, List[str]]) -> None:
-        """Loads and parses one or more target YAML configuration files into internal storage.
+        """Loads one or more YAML files from the configuration directory.
 
-        Normalizes input parameters into a uniform iterable list sequence of string keys.
-        The method loops through targets and triggers a warning instead of halting if missing.
-        Valid paths are decoded via safe YAML parser and saved into the internal data registry.
+        A missing file only raises a warning and is skipped. An empty file is
+        stored as an empty dictionary.
 
         Args:
-            config_name (str | List[str]): Single identifier or a list of config file names.
+            config_name (str | List[str]): File name without extension, or a list of them.
         """
-        config_names = config_name if isinstance(config_name, list) else [config_name]
-        for config_name in config_names:
-            filepath = Path(self.config_dir / f"{config_name}.yaml")
+        names = [config_name] if isinstance(config_name, str) else config_name
+        for name in names:
+            filepath = self.config_dir / f"{name}.yaml"
 
             if not filepath.is_file():
-                warnings.warn(f"No configuration file found at '{filepath}'. Passed.")
+                warnings.warn(f"No configuration file found at '{filepath}'. Skipped.")
                 continue
 
             with open(filepath, "r", encoding="utf-8") as file:
-                data = yaml.load(file, Loader=SafeLoader)
+                data = yaml.safe_load(file)
 
-            self._config[config_name] = data if data is not None else {}
+            self._config[name] = data if data is not None else {}
 
 
     def get_param(self, key: str, default: Any = None) -> Any:
-        """Retrieves a nested parameter value from the loaded state utilizing dot notation paths.
-
-        Splits the incoming query string path by dot characters to locate deep structural keys.
-        The mechanism recursively traverses internal storage blocks layer by layer until matching.
-        If any step triggers a key error missing event, it falls back to return the default item.
+        """Returns a nested value addressed by a dot-separated key.
 
         Args:
-            key (str): The dot-separated sequence path pointing to the desired setup parameter.
-            default (Any): The fallback item returned if the exact key path is not registered.
+            key (str): Dot-separated path, e.g. ``"settings.paths.raw_data"``.
+            default (Any): Value returned if any part of the path does not exist.
 
         Returns:
-            Any: The located configuration variable value or the designated default fallback.
+            Any: The stored value or `default`.
         """
-        parts = key.split('.')
-        current_config: Dict[str, Any] = self._config
-
-        try:
-            for part in parts: # Recursion for layer by layer matching
-                current_config = current_config[part]
-            return current_config
-
-        except KeyError:
-            return default
+        value: Any = self._config
+        for part in key.split("."):
+            try:
+                value = value[part]
+            except (KeyError, TypeError):
+                return default
+        return value

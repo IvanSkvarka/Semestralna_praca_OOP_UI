@@ -1,8 +1,8 @@
-from typing import Union, Any, Dict, Optional, Tuple, Callable
-from abc import abstractmethod
 from pathlib import Path
-import shutil
+from typing import Any, Callable, Dict, Optional, Tuple
 import math
+import shutil
+import warnings
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.figure import Figure
@@ -11,120 +11,131 @@ import pandas as pd
 from base import BasePipelineComponent  # pylint: disable=import-error
 from utils.config_manager import ConfigManager  # pylint: disable=import-error
 
+GOLDEN_RATIO = (5**0.5 - 1) / 2
+GRID_COLUMNS = 2
+
+
 
 class BaseVisualizer(BasePipelineComponent):
-    """
-    
+    """An abstract base class for components that render figures.
+
+    Reads the figure settings from the `visualization` configuration, prepares the
+    matplotlib style and provides helpers for figure creation, axis labels,
+    multi-panel grids and saving. Subclasses add the concrete plots.
     """
     def __init__(
         self,
         config_manager: ConfigManager,
         name: Optional[str] = None,
-        subfolder: Optional[Union[str, Path]] = None,
+        subfolder: str = "",
     ) -> None:
-        """
-        
+        """Reads the visualization settings and prepares the matplotlib style.
+
+        Figures are saved as PDF with the style from the configuration if
+        `visualization.exportable` is true, otherwise as PNG and optionally shown.
+        Exportable figures are never shown interactively.
+
+        Args:
+            config_manager (ConfigManager): Configuration manager instance.
+            name (str | None): Component name.
+            subfolder (str): Subdirectory of `settings.paths.figures_dir` for the figures.
         """
         super().__init__(config_manager, name)
-        self._show_plots: bool = bool(config_manager["visualization.show_plots"])
+        self._exportable: bool = bool(config_manager["visualization.exportable"])
+        self._show_plots: bool = bool(config_manager["visualization.show_plots"]) \
+                                 and not self._exportable
         self._dpi: int = int(config_manager["visualization.dpi"])
         self._width_pt: float = float(config_manager["visualization.width_pt"])
-        self._names: Dict[str, str] = config_manager.get_param("dictionary.names", {})
         self._units: Dict[str, str] = config_manager.get_param("dictionary.units", {})
         self._labels: Dict[str, str] = config_manager.get_param("dictionary.labels", {})
 
-        self._exportable: bool = bool(config_manager["visualization.exportable"])
-        if self._exportable and self._show_plots:
-            self.logger.warning(
-                "Exportable=True: vypínam interaktívne zobrazovanie (show_plots=False)."
-            )
-            self._show_plots = False
-
-
         self._save_format: str = "pdf" if self._exportable else "png"
-        base_dir = Path(config_manager["settings.paths.figures_dir"])
-        self._output_dir: Path = base_dir / subfolder if subfolder else base_dir
+        self._output_dir: Path = Path(config_manager["settings.paths.figures_dir"]) / subfolder
 
-        sns.set_style('white')
+        sns.set_style("white")
         if self._exportable:
             self._setup_style()
 
 
     def _setup_style(self) -> None:
-        """ """
-        use_tex = bool(
-            self.config_manager["visualization.use_tex"] and 
-            (shutil.which("latex") or shutil.which("pdflatex")
-            or shutil.which("tex")) is not None
-        )
-        if not use_tex and self.config_manager["visualization.use_tex"]:
-            self.logger.warning("LaTeX not found in PATH. Shutting down text.usetex.")
+        """Applies the font and size settings from the configuration to matplotlib.
 
-        tick_scale = float(self.config_manager["visualization.tick_scale"])
-        legend_scale = float(self.config_manager["visualization.legend_scale"])
+        LaTeX text rendering is enabled only if `visualization.use_tex` is true
+        and a LaTeX installation is found, otherwise a warning is raised.
+        """
+        use_tex = bool(self.config_manager["visualization.use_tex"])
+        if use_tex and shutil.which("latex") is None:
+            warnings.warn("LaTeX not found in PATH. Text rendering with LaTeX is disabled.")
+            use_tex = False
+
+        font_size = self.config_manager["visualization.font_size"]
+        tick_size = font_size * float(self.config_manager["visualization.tick_scale"])
+        legend_size = font_size * float(self.config_manager["visualization.legend_scale"])
 
         plt.rcParams.update({
             "font.family": self.config_manager["visualization.font_family"],
-            "font.size": self.config_manager["visualization.font_size"],
-            "axes.labelsize": self.config_manager["visualization.font_size"],
-            "xtick.labelsize": self.config_manager["visualization.font_size"] * tick_scale,
-            "ytick.labelsize": self.config_manager["visualization.font_size"] * tick_scale,
-            "legend.fontsize": self.config_manager["visualization.font_size"] * legend_scale,
+            "font.size": font_size,
+            "axes.labelsize": font_size,
+            "xtick.labelsize": tick_size,
+            "ytick.labelsize": tick_size,
+            "legend.fontsize": legend_size,
             "text.usetex": use_tex,
-            "pgf.rcfonts": False,
-            "pgf.texsystem": "pdflatex",
-            "pgf.preamble": r"\usepackage{mathptmx}",
         })
 
 
     def _create_figure(
-        self,
-        nrows: int = 1,
-        ncols: int = 1,
-        fraction: float = 1.0,
-        square: bool = False,
+        self, nrows: int = 1, ncols: int = 1, square: bool = False
     ) -> Tuple[Figure, Any]:
-        """ """
-        width_in = (self._width_pt * fraction) / 72.27
-        ratio = 1.0 if square else (5**0.5 - 1) / 2
-        height_in = width_in * ratio * (nrows / ncols)
+        """Creates a figure with a grid of axes sized from `visualization.width_pt`.
 
-        fig, axes = plt.subplots(
-            nrows, ncols, figsize=(width_in, height_in), squeeze=False
-        )
-        return (fig, axes.flatten())
+        Args:
+            nrows (int): Number of grid rows.
+            ncols (int): Number of grid columns.
+            square (bool): If True, each panel is square, otherwise it follows
+                the golden ratio.
+
+        Returns:
+            Tuple[Figure, Any]: The figure and a flat array of its axes.
+        """
+        width_in = self._width_pt / 72.27
+        ratio = 1.0 if square else GOLDEN_RATIO
+        height_in = width_in * ratio * nrows / ncols
+
+        fig, axes = plt.subplots(nrows, ncols, figsize=(width_in, height_in), squeeze=False)
+        return fig, axes.ravel()
 
 
-    def _build_label(
-        self,
-        col: str = "",
-        prefix: str = "",
-        suffix: str = "",
-        include_name: bool = False,
-        include_symbol: bool = True,
-        include_unit: bool = False
-    ) -> str:
-        """ """
+    def _build_label(self, col: str, include_unit: bool = False) -> str:
+        """Builds an axis label for a data column.
 
-        symbol = self._labels.get(col, " ") if include_symbol else " "
-        name = self._names.get(col, col.replace("_", " ")) if include_name else " "
-        unit = f" [${self._units.get(col, "-")}$]" if include_unit else " "
+        Uses the symbol from the dictionary, or the column name with spaces instead
+        of underscores if there is no symbol.
 
-        prefix = prefix.replace("_", " ")
-        suffix = suffix.replace("_", " ")
+        Args:
+            col (str): Column name.
+            include_unit (bool): If True, appends the unit from the dictionary.
 
-        return f"{prefix}{name}{symbol}{unit}{suffix}"
+        Returns:
+            str: The label, e.g. ``$N$ [$\\mathrm{min^{-1}}$]``.
+        """
+        label = self._labels.get(col, col.replace("_", " "))
+        if include_unit:
+            label = f"{label} [${self._units.get(col, '-')}$]"
+        return label
 
 
     def _finalize_plot(self, fig: Figure, filename: str) -> None:
-        """ """
+        """Saves the figure to the output directory, optionally shows it, and closes it.
+
+        Args:
+            fig (Figure): The figure to save.
+            filename (str): File name without extension.
+        """
         fig.tight_layout()
 
         self._output_dir.mkdir(parents=True, exist_ok=True)
         file_path = self._output_dir / f"{filename}.{self._save_format}"
-
         fig.savefig(file_path, dpi=self._dpi, bbox_inches="tight") # type: ignore
-        self.logger.info("Graph saved in '%s'", file_path)
 
         if self._show_plots:
             fig.show()
@@ -139,45 +150,33 @@ class BaseVisualizer(BasePipelineComponent):
         plot_fn: Callable[[pd.Series, Any], None],
         title_prefix: str,
         file_suffix: str,
-        n_cols: int = 2,
-    ) -> Any:
-        """Renders a multi-panel grid for all columns present in `df_subset`.
+    ) -> None:
+        """Draws every column of `df_subset` into its own panel of one saved figure.
+
+        Does nothing if `df_subset` has no columns.
 
         Args:
-            df_subset (pd.DataFrame): Pre-filtered DataFrame containing only the
-            columns to be plotted.
-            group_name (str): Label used in the figure suptitle and output filename
-            (e.g., 'target_columns' or 'feature_columns').
-            plot_fn (Callable): Callback function accepting (Series, Axis) to draw.
-            title_prefix (str): Prefix string for the figure suptitle.
-            file_suffix (str): Suffix appended to the exported filename.
-            n_cols (int): Number of columns in the subplot grid. Defaults to 2.
-
-        Returns:
-            Any: Output returned by `self._finalize_plot`.
+            df_subset (pd.DataFrame): The columns to plot.
+            group_name (str): Name of the column group, used in the title and the file name.
+            plot_fn (Callable): Function that draws one column (Series) on the given axes.
+            title_prefix (str): Start of the figure title, shown only for non-exportable figures.
+            file_suffix (str): Suffix of the file name.
         """
-        columns_to_plot = df_subset.columns.to_list()
-        if not columns_to_plot:
-            self.logger.warning("No columns provided to plot for '%s'.", group_name)
-            return None
+        columns = df_subset.columns
+        if columns.empty:
+            return
 
-        n_rows = math.ceil(len(columns_to_plot) / n_cols)
-        fig, axes = self._create_figure(n_rows, n_cols)
+        n_rows = math.ceil(len(columns) / GRID_COLUMNS)
+        fig, axes = self._create_figure(n_rows, GRID_COLUMNS)
 
         if not self._exportable:
-            fig.suptitle(self._build_label(prefix=f"{title_prefix} of {group_name}"))  # type: ignore
+            fig.suptitle(f"{title_prefix} of {group_name.replace('_', ' ')}")  # type: ignore
 
-        for idx, col in enumerate(columns_to_plot):
-            plot_fn(df_subset[col], axes[idx])
-            axes[idx].set_xlabel(self._build_label(col, include_unit=True))
+        for axis, col in zip(axes, columns):
+            plot_fn(df_subset[col], axis)
+            axis.set_xlabel(self._build_label(col, include_unit=True))
 
-        for i in range(len(columns_to_plot), len(axes)):
-            fig.delaxes(axes[i])
+        for axis in axes[len(columns):]:
+            fig.delaxes(axis)
 
-        return self._finalize_plot(fig, f"{group_name}_{file_suffix}")
-
-
-
-    @abstractmethod
-    def run(self, *args: Any, **kwargs: Any) -> Any:
-        """ """
+        self._finalize_plot(fig, f"{group_name}_{file_suffix}")
