@@ -2,9 +2,8 @@
 
 from data_handling.data_loader import DataLoader
 from data_handling.eda_analyzer import EDAnalyzer
+from data_handling.preprocessor import Preprocessor
 from utils.config_manager import ConfigManager
-
-
 
 if __name__ == "__main__":
     cfg = ConfigManager("config")
@@ -15,3 +14,6 @@ if __name__ == "__main__":
 
     eda_analyzer = EDAnalyzer(cfg, "ReactorEDAnalyzer")
     eda_analyzer(df)
+
+    preprocessor = Preprocessor(cfg, "ReactorPreprocessor")
+    X, y, groups = preprocessor(df)

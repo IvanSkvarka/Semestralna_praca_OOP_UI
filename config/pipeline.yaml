@@ -4,3 +4,13 @@ eda:
   iqr_multiplier: 1.5                 # koeficient pre detekciu outlierov (1.5 * IQR)
   save_reports: true                  # ulozit tabulky so statistikami do report/
   generate_plots: true
+
+preprocessing:
+  target: epsilon_p50
+  group_columns: [reactor_diameter, liquid_height, n_impeller]
+  log_target: true
+  log_features: [volume, rpm, reactor_diameter, liquid_height]
+  drop_duplicates: true
+  drop_constant_columns: true
+  save_reports: true
+  generate_plots: true

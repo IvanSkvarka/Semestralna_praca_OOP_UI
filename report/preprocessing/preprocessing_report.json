@@ -1,0 +1,57 @@
+{
+    "n_unique_groups": 36,
+    "features": [
+        {
+            "name": "volume",
+            "log10_transformed": true
+        },
+        {
+            "name": "reactor_diameter",
+            "log10_transformed": true
+        },
+        {
+            "name": "liquid_height",
+            "log10_transformed": true
+        },
+        {
+            "name": "bottom_depth",
+            "log10_transformed": false
+        },
+        {
+            "name": "n_impeller",
+            "log10_transformed": false
+        },
+        {
+            "name": "diameter_impeller_1",
+            "log10_transformed": false
+        },
+        {
+            "name": "ax_posImpeller_1",
+            "log10_transformed": false
+        },
+        {
+            "name": "diameter_impeller_2",
+            "log10_transformed": false
+        },
+        {
+            "name": "ax_posImpeller_2",
+            "log10_transformed": false
+        },
+        {
+            "name": "n_blades_2",
+            "log10_transformed": false
+        },
+        {
+            "name": "pitch_angle_2",
+            "log10_transformed": false
+        },
+        {
+            "name": "rpm",
+            "log10_transformed": true
+        }
+    ],
+    "target": {
+        "name": "epsilon_p50",
+        "log10_transformed": true
+    }
+}
