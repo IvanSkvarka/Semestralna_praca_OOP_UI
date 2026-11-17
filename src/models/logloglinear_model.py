@@ -1,35 +1,35 @@
 from typing import Optional, Dict, Any
-from sklearn.linear_model import LinearRegression
 import numpy as np
+import pandas as pd
+from sklearn.linear_model import LinearRegression
 
 from models.base_model import BaseModel # pylint: disable=import-error
 from utils.config_manager import ConfigManager # pylint: disable=import-error
+
 
 class LogLogLinearModel(BaseModel):
     """
     """
     def __init__(
-            self,
-            config_manager: ConfigManager,
-            params_override: Optional[Dict[str, Any]] = None,
-            name: Optional[str] = None
-        ) -> None:
+        self,
+        config_manager: ConfigManager,
+        n_estimators: Optional[int] = None,
+        learning_rate: Optional[float] = None,
+        max_depth: Optional[int] = None,
+        random_state: Optional[int] = None,
+    ) -> None:
         """
         """
-        super().__init__(config_manager, "loglog_linear", params_override, name)
+        super().__init__(config_manager)
+        self._params: Dict[str, Any] = self.config_manager.get_param("pipeline.models.loglog_linear", {})
 
-    def _build_estimator(self) -> "LinearRegression":
-        return LinearRegression(**self._params)
 
-    @property
-    def coefficients(self) -> Dict[str, float]:
-        self._check_is_fitted()
-        return {
-            feature: float(coef)
-            for feature, coef in zip(self._feature_names, np.ravel(self._estimator.coef_))
-        }
-    
-    @property
-    def intercept(self) -> float:
-        self._check_is_fitted()
-        return float(np.asarray(self._estimator.intercept_).item())
+
+    def fit(self, X: pd.DataFrame, y: pd.Series, groups: Optional[pd.Series] = None) -> "LogLogLinearModel":
+        self.model_ = LinearRegression()
+        self.model_.fit(X, y)
+        return self
+
+
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        return self.model_.predict(X)

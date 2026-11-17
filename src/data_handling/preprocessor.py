@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Optional, Tuple, Union, Dict, Any
+from typing import List, Optional, Tuple, Dict, Any
 import json
 import pandas as pd
 import numpy as np
@@ -206,16 +206,3 @@ class Preprocessor(BasePipelineComponent):
         self._plot()
         self._save_report()
         return features, target_values, groups
-
-
-    def inverse_target(self, y_log: Union[pd.Series, np.ndarray, float]) -> Union[pd.Series, np.ndarray, float]:
-        """Converts the target back to its original scale.
-
-        Args:
-            y_log (pd.Series | np.ndarray | float): Target values in the preprocessed scale.
-
-        Returns:
-            pd.Series | np.ndarray | float: Values in the original scale, or unchanged
-            if `log_target` is disabled.
-        """
-        return 10.0 ** y_log if self._log_target else y_log

@@ -1,10 +1,11 @@
 """Entry point of the ML pipeline. Run it from the repository root: python src/main.py"""
 
+from utils.config_manager import ConfigManager
 from data_handling.data_loader import DataLoader
 from data_handling.eda_analyzer import EDAnalyzer
 from data_handling.preprocessor import Preprocessor
-from models.meanbaseline_model import MeanBaselineModel
-from utils.config_manager import ConfigManager
+from models import meanbaseline_model, logloglinear_model, gradientboosting_model
+
 
 
 if __name__ == "__main__":
@@ -20,8 +21,9 @@ if __name__ == "__main__":
     preprocessor = Preprocessor(cfg, "ReactorPreprocessor")
     X, y, groups = preprocessor(df)
 
-    baseline = MeanBaselineModel(cfg)
-    baseline.fit(X, y)
-    predict = baseline.predict(X)
+    eval_models = [
+        meanbaseline_model.MeanBaselineModel(cfg),
+        logloglinear_model.LogLogLinearModel(cfg),
+        gradientboosting_model.GradientBoostingModel(cfg)
+    ]
 
-    print(predict)
