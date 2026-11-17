@@ -21,3 +21,7 @@ models:
   mean_baseline:
   loglog_linear:
   gradient_boosting:
+
+evaluation:
+  save_reports: true
+  generate_plots: true

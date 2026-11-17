@@ -1,0 +1,23 @@
+{
+    "LogLogLinearModel":{
+        "r2_log10":0.9930750498,
+        "rmse_log10":0.0617631577,
+        "mae_log10":0.0410747658,
+        "rmse_orig":0.0327106252,
+        "mae_orig":0.0123199492
+    },
+    "GradientBoostingModel":{
+        "r2_log10":0.8819871576,
+        "rmse_log10":0.2549680713,
+        "mae_log10":0.1972859671,
+        "rmse_orig":0.0619900274,
+        "mae_orig":0.036824376
+    },
+    "MeanBaselineModel":{
+        "r2_log10":-0.109171637,
+        "rmse_log10":0.7816647746,
+        "mae_log10":0.6794502803,
+        "rmse_orig":0.1612798699,
+        "mae_orig":0.0958098673
+    }
+}
