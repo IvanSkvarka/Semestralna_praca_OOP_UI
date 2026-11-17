@@ -30,6 +30,12 @@ class BaseModel(BaseEstimator, RegressorMixin, BasePipelineComponent, ABC):
 
 
 
+    def _check_is_fitted(self) -> None:
+        if not hasattr(self, "model_"):
+            raise RuntimeError(ERR_MSG)
+
+
+
     @abstractmethod
     def fit(self, X_train: pd.DataFrame, y_train: pd.Series) -> "BaseModel":
         pass

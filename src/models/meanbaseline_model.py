@@ -23,4 +23,5 @@ class MeanBaselineModel(BaseModel):
 
 
     def predict(self, X_test: pd.DataFrame) -> np.ndarray:
+        self._check_is_fitted()
         return self.model_.predict(X_test)
