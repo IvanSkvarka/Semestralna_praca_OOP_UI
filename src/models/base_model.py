@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any, List
+from typing import Optional
 from abc import ABC, abstractmethod
 import pandas as pd
 import numpy as np
@@ -31,12 +31,7 @@ class BaseModel(BaseEstimator, RegressorMixin, BasePipelineComponent, ABC):
 
 
     @abstractmethod
-    def _build_estimator(self) -> "BaseEstimator":
-        pass
-
-
-    @abstractmethod
-    def fit(self, X_train: pd.DataFrame, y_train: pd.Series, groups: Optional[pd.Series] = None) -> "BaseModel":
+    def fit(self, X_train: pd.DataFrame, y_train: pd.Series) -> "BaseModel":
         pass
 
 

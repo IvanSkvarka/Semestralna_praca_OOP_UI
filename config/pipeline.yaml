@@ -4,8 +4,8 @@ eda:
   correlation_method: "pearson"       # moznosti: "pearson", "spearman"
   correlation_threshold: 0.85         # prah pre upozornenie na multikolinearitu
   iqr_multiplier: 1.5                 # koeficient pre detekciu outlierov (1.5 * IQR)
-  save_reports: true                  # ulozit tabulky so statistikami do report/
-  generate_plots: true
+  save_reports: false                  # ulozit tabulky so statistikami do report/
+  generate_plots: false
 
 preprocessing:
   target: epsilon_p50
@@ -14,8 +14,8 @@ preprocessing:
   log_features: [volume, rpm, reactor_diameter, liquid_height]
   drop_duplicates: true
   drop_constant_columns: true
-  save_reports: true
-  generate_plots: true
+  save_reports: false
+  generate_plots: false
 
 models:
   mean_baseline:

@@ -21,7 +21,7 @@ class GradientBoostingModel(BaseModel):
         """
         """
         super().__init__(config_manager)
-        self._params: Dict[str, Any] = self.config_manager.get_param("pipeline.models.gradient_boosting", {})
+        self._params: Dict[str, Any] = self.config_manager.get_param("pipeline.models.gradient_boosting") or {}
 
         self.n_estimators = n_estimators if n_estimators is not None else self._params.get("n_estimators", 100)
         self.learning_rate = learning_rate if learning_rate is not None else self._params.get("learning_rate", 0.1)
@@ -30,16 +30,16 @@ class GradientBoostingModel(BaseModel):
 
 
 
-    def fit(self, X: pd.DataFrame, y: pd.Series, groups: Optional[pd.Series] = None) -> "GradientBoostingModel":
+    def fit(self, X_train: pd.DataFrame, y_train: pd.Series) -> "GradientBoostingModel":
         self.model_ = GradientBoostingRegressor(
             n_estimators=self.n_estimators,
             learning_rate=self.learning_rate,
             max_depth=self.max_depth,
             random_state=self.random_state,
         )
-        self.model_.fit(X, y)
+        self.model_.fit(X_train, y_train)
         return self
 
 
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
-        return self.model_.predict(X)
+    def predict(self, X_test: pd.DataFrame) -> np.ndarray:
+        return self.model_.predict(X_test)
