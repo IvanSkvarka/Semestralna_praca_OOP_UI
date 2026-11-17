@@ -1,4 +1,6 @@
 {
+    "n_rows": 767,
+    "n_features": 12,
     "n_unique_groups": 36,
     "features": [
         {

@@ -6,7 +6,7 @@ import pandas as pd
 from base import BasePipelineComponent # pylint: disable=import-error
 from utils.config_manager import ConfigManager # pylint: disable=import-error
 
-NOT_LOADED_MSG = "The data has not been loaded yet." \
+ERR_MSG = "The data has not been loaded yet." \
                  " First, call the `run()` method or call the instance."
 
 
@@ -45,7 +45,7 @@ class DataLoader(BasePipelineComponent):
             RuntimeError: If the data has not been loaded yet.
         """
         if self._data is None:
-            raise RuntimeError(NOT_LOADED_MSG)
+            raise RuntimeError(ERR_MSG)
         return self._data
 
 
@@ -63,7 +63,7 @@ class DataLoader(BasePipelineComponent):
             RuntimeError: If no feature columns are configured and the data has not been loaded.
         """
         if self._feature_columns is None:
-            raise RuntimeError(NOT_LOADED_MSG)
+            raise RuntimeError(ERR_MSG)
         return list(self._feature_columns)
 
 

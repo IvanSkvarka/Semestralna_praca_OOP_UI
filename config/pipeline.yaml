@@ -1,3 +1,5 @@
+random_state: 42
+
 eda:
   correlation_method: "pearson"       # moznosti: "pearson", "spearman"
   correlation_threshold: 0.85         # prah pre upozornenie na multikolinearitu
@@ -14,3 +16,8 @@ preprocessing:
   drop_constant_columns: true
   save_reports: true
   generate_plots: true
+
+models:
+  mean_baseline:
+  loglog_linear:
+  gradient_boosting:

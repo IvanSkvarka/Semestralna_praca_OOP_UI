@@ -123,7 +123,6 @@ class Preprocessor(BasePipelineComponent):
         if self._visualizer is None:
             return
 
-        #logged_target = [self.target.name] if self._log_target else []
         self._visualizer.plot_distributions(self.target.to_frame(), "target")
         self._visualizer.plot_distributions(self.features, "features")
         self._visualizer.plot_group_sizes(self.groups)
@@ -139,6 +138,8 @@ class Preprocessor(BasePipelineComponent):
         output_dir.mkdir(parents=True, exist_ok=True)
 
         report: Dict[str, Any] = {
+            "n_rows": int(len(self.features)),
+            "n_features": int(self.features.shape[1]),
             "n_unique_groups": int(self.groups.nunique()),
             "features": [
                 {"name": col, "log10_transformed": col in self._logged_features}
