@@ -7,11 +7,11 @@
         "mae_orig":0.0123199492
     },
     "GradientBoostingModel":{
-        "r2_log10":0.8819871576,
-        "rmse_log10":0.2549680713,
-        "mae_log10":0.1972859671,
-        "rmse_orig":0.0619900274,
-        "mae_orig":0.036824376
+        "r2_log10":0.8869176039,
+        "rmse_log10":0.2495851055,
+        "mae_log10":0.1956352922,
+        "rmse_orig":0.0585220371,
+        "mae_orig":0.0374242848
     },
     "MeanBaselineModel":{
         "r2_log10":-0.109171637,

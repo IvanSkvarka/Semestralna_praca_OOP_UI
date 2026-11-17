@@ -8,7 +8,8 @@ from base import BasePipelineComponent  # pylint: disable=import-error
 from utils.config_manager import ConfigManager  # pylint: disable=import-error
 from visualization.preprocessor_visualizer import PreprocessorVisualizer  # pylint: disable=import-error
 
-ERR_MSG = "Preprocessor has not been run yet. First, call the `run()` method or call the instance."
+ERR_MSG = "Preprocessor has not been run yet. " \
+                 "First, call the `run()` method or call the instance."
 
 
 
@@ -21,11 +22,15 @@ class Preprocessor(BasePipelineComponent):
     through read-only properties after `run()`.
     """
     def __init__(self, config_manager: ConfigManager, name: Optional[str] = None) -> None:
-        """Reads the preprocessing settings and creates the visualizer if plotting is enabled.
+        """Initializes preprocessing options and optional visualization support.
+
+        Reads target, grouping, transformation and cleanup options from configuration.
+        Initializes result storage before any input data has been processed.
+        Creates a visualizer only when preprocessing plots are enabled.
 
         Args:
-            config_manager (ConfigManager): Configuration manager instance.
-            name (str | None): Component name.
+            config_manager: Configuration manager instance.
+            name: Optional component name.
         """
         super().__init__(config_manager, name)
         self._target_name: Optional[str] = self.config_manager.get_param(
@@ -64,11 +69,7 @@ class Preprocessor(BasePipelineComponent):
 
     @property
     def target(self) -> pd.Series:
-        """Provides the preprocessed target (log10 scale if `log_target` is enabled).
-
-        Raises:
-            RuntimeError: If `run()` has not been called yet.
-        """
+        """Returns the preprocessed target or raises RuntimeError if preprocessing has not run."""
         if self._target is None:
             raise RuntimeError(ERR_MSG)
         return self._target
@@ -76,11 +77,7 @@ class Preprocessor(BasePipelineComponent):
 
     @property
     def features(self) -> pd.DataFrame:
-        """Provides the preprocessed features.
-
-        Raises:
-            RuntimeError: If `run()` has not been called yet.
-        """
+        """Returns the preprocessed features or raises RuntimeError if preprocessing has not run."""
         if self._features is None:
             raise RuntimeError(ERR_MSG)
         return self._features
@@ -88,11 +85,7 @@ class Preprocessor(BasePipelineComponent):
 
     @property
     def groups(self) -> pd.Series:
-        """Provides the group number of each row, used to split the data without leakage.
-
-        Raises:
-            RuntimeError: If `run()` has not been called yet.
-        """
+        """Returns each row's group label or raises RuntimeError if preprocessing has not run."""
         if self._groups is None:
             raise RuntimeError(ERR_MSG)
         return self._groups
@@ -101,10 +94,14 @@ class Preprocessor(BasePipelineComponent):
 
     @staticmethod
     def _log10(data: pd.DataFrame) -> pd.DataFrame:
-        """Applies log10 to all columns after checking that all their values are positive.
+        """Applies the base-10 logarithm to every column after validating its values.
+
+        Checks each column for zero or negative values before transforming the frame.
+        Rejects the entire operation if any value is not strictly positive.
+        Returns a new frame containing the transformed values.
 
         Args:
-            data (pd.DataFrame): The columns to transform.
+            data: The columns to transform.
 
         Returns:
             pd.DataFrame: The transformed columns.
@@ -114,12 +111,20 @@ class Preprocessor(BasePipelineComponent):
         """
         non_positive = data.columns[(data <= 0).any(axis=0)].to_list()
         if non_positive:
-            raise ValueError(f"Cannot apply log10 to non-positive values in columns {non_positive}.")
+            raise ValueError(
+                f"Cannot apply log10 to non-positive values in columns {non_positive}."
+            )
         return np.log10(data) # type: ignore
 
 
+
     def _plot(self) -> None:
-        """Renders the distributions and the group sizes, if plotting is enabled."""
+        """Renders target, feature and group-size plots when a visualizer is configured.
+
+        Does nothing when plot generation was disabled during initialization.
+        Otherwise sends the current preprocessing results to their corresponding plots.
+        The results are accessed through properties that validate preprocessing state.
+        """
         if self._visualizer is None:
             return
 
@@ -129,7 +134,12 @@ class Preprocessor(BasePipelineComponent):
 
 
     def _save_report(self) -> None:
-        """Saves a JSON report of the data prepared for training."""
+        """Writes a JSON summary of the prepared training data when reports are enabled.
+
+        Creates the preprocessing output directory when needed.
+        Records dataset dimensions, grouping information and applied log transformations.
+        Does nothing when report saving is disabled in the configuration.
+        """
         if not self.config_manager.get_param("pipeline.preprocessing.save_reports", True):
             return
 
@@ -152,15 +162,22 @@ class Preprocessor(BasePipelineComponent):
 
 
 
-    def run(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series, pd.Series]:
-        """Runs the preprocessing, renders the plots and saves the report.
+    def run(
+        self, df: pd.DataFrame, *args: Any, **kwargs: Any
+    ) -> Tuple[pd.DataFrame, pd.Series, pd.Series]:
+        """Prepares model features, target values and leakage-safe group labels.
+
+        Validates configured columns, optionally removes duplicates and constant features,
+        and applies requested log10 transformations.
+        Rejects non-finite results before storing them as the latest preprocessing output.
+        Finally generates enabled plots and a JSON report.
 
         Args:
-            df (pd.DataFrame): The raw data.
+            df: The raw data.
 
         Returns:
-            Tuple[pd.DataFrame, pd.Series, pd.Series]: The features, the target and the group
-            number of each row. All three share the same index.
+            Tuple[pd.DataFrame, pd.Series, pd.Series]: Features, target and row group labels,
+                all sharing the same index.
 
         Raises:
             ValueError: If the target or group columns are not configured, if a configured

@@ -7,21 +7,59 @@ from utils.config_manager import ConfigManager # pylint: disable=import-error
 
 
 class MeanBaselineModel(BaseModel):
-    """
+    """Regression baseline that predicts the mean target learned from training data.
+
+    Wraps scikit-learn's `DummyRegressor` with its default mean strategy.
+    The inherited fitted-state check prevents prediction before training.
     """
     def __init__(self, config_manager: ConfigManager) -> None:
-        """
+        """Initializes the mean baseline with the shared pipeline configuration.
+
+        The configuration is retained by the base model for interface consistency.
+        The underlying estimator is created when `fit()` is called.
+
+        Args:
+            config_manager: Configuration manager used by the pipeline.
+
+        Returns:
+            None: The model is initialized but not fitted.
         """
         super().__init__(config_manager)
 
 
 
     def fit(self, X_train: pd.DataFrame, y_train: pd.Series) -> "MeanBaselineModel":
+        """Fits a dummy regressor that predicts the training-target mean.
+
+        Creates a fresh scikit-learn estimator for each fit operation.
+        Stores the fitted estimator on the model and returns this model.
+
+        Args:
+            X_train: Training feature matrix.
+            y_train: Training target values.
+
+        Returns:
+            MeanBaselineModel: This fitted model instance.
+        """
         self.model_ = DummyRegressor()
         self.model_.fit(X_train, y_train)
         return self
 
 
     def predict(self, X_test: pd.DataFrame) -> np.ndarray:
+        """Predicts the training-target mean for each test row.
+
+        Checks that fitting has completed before delegating prediction.
+        The output contains one prediction for every row in the test matrix.
+
+        Args:
+            X_test: Feature matrix to predict.
+
+        Returns:
+            np.ndarray: Mean target predictions.
+
+        Raises:
+            RuntimeError: If the model has not been fitted.
+        """
         self._check_is_fitted()
-        return self.model_.predict(X_test)
+        return self.model_.predict(X_test) # type: ignore

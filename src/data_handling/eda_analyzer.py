@@ -8,7 +8,8 @@ from base import BasePipelineComponent  # pylint: disable=import-error
 from utils.config_manager import ConfigManager  # pylint: disable=import-error
 from visualization.eda_visualizer import EDAVisualizer  # pylint: disable=import-error
 
-ERR_MSG = "EDAnalyzer has not been run yet. First, call the `run()` method or call the instance."
+ERR_MSG = "EDAnalyzer has not been run yet. " \
+                 "First, call the `run()` method or call the instance."
 
 
 
@@ -20,11 +21,15 @@ class EDAnalyzer(BasePipelineComponent):
     The results are available through read-only properties after `run()`.
     """
     def __init__(self, config_manager: ConfigManager, name: Optional[str] = None) -> None:
-        """Reads the column lists and creates the visualizer if plotting is enabled.
+        """Initializes exploratory analysis results and optional visualization support.
+
+        Reads feature and target columns from configuration for later plotting.
+        Initializes analysis results as unavailable until `run()` completes.
+        Creates an EDA visualizer only when plot generation is enabled.
 
         Args:
-            config_manager (ConfigManager): Configuration manager instance.
-            name (str | None): Component name.
+            config_manager: Configuration manager instance.
+            name: Optional component name.
         """
         super().__init__(config_manager, name)
         self._basic_stats: Optional[pd.DataFrame] = None
@@ -44,11 +49,7 @@ class EDAnalyzer(BasePipelineComponent):
 
     @property
     def basic_stats(self) -> pd.DataFrame:
-        """Provides the descriptive statistics table.
-
-        Raises:
-            RuntimeError: If `run()` has not been called yet.
-        """
+        """Returns the descriptive statistics or raises RuntimeError if analysis has not run."""
         if self._basic_stats is None:
             raise RuntimeError(ERR_MSG)
         return self._basic_stats
@@ -56,11 +57,7 @@ class EDAnalyzer(BasePipelineComponent):
 
     @property
     def correlation_matrix(self) -> pd.DataFrame:
-        """Provides the correlation matrix of the non-constant columns.
-
-        Raises:
-            RuntimeError: If `run()` has not been called yet.
-        """
+        """Returns the correlations or raises RuntimeError if analysis has not run."""
         if self._correlation_matrix is None:
             raise RuntimeError(ERR_MSG)
         return self._correlation_matrix
@@ -68,11 +65,7 @@ class EDAnalyzer(BasePipelineComponent):
 
     @property
     def quality_report(self) -> Dict[str, Any]:
-        """Provides the data quality report.
-
-        Raises:
-            RuntimeError: If `run()` has not been called yet.
-        """
+        """Returns the data quality report or raises RuntimeError if analysis has not run."""
         if self._quality_report is None:
             raise RuntimeError(ERR_MSG)
         return self._quality_report
@@ -80,11 +73,7 @@ class EDAnalyzer(BasePipelineComponent):
 
     @property
     def outlier_counts(self) -> pd.Series:
-        """Provides the number of IQR outliers per numeric non-constant column.
-
-        Raises:
-            RuntimeError: If `run()` has not been called yet.
-        """
+        """Returns IQR outlier counts or raises RuntimeError if analysis has not run."""
         if self._outlier_counts is None:
             raise RuntimeError(ERR_MSG)
         return self._outlier_counts
@@ -93,14 +82,17 @@ class EDAnalyzer(BasePipelineComponent):
 
     @staticmethod
     def _compute_basic_stats(df: pd.DataFrame) -> pd.DataFrame:
-        """Computes descriptive statistics for each numeric column.
+        """Builds descriptive statistics and data-quality counts for each column.
+
+        Starts with pandas descriptive statistics and transposes the result by column.
+        Adds skewness, kurtosis, unique-value counts and missing-value counts.
+        NaN values are included when counting unique values.
 
         Args:
-            df (pd.DataFrame): The analyzed data.
+            df: The analyzed data.
 
         Returns:
-            pd.DataFrame: One row per column with the `describe()` metrics, skewness,
-            kurtosis, number of unique values (NaN counts as a value) and missing count.
+            pd.DataFrame: One row per column with summary metrics and quality counts.
         """
         stats = df.describe().T
         stats["skew"] = df.skew(numeric_only=True)
@@ -112,16 +104,18 @@ class EDAnalyzer(BasePipelineComponent):
 
     @staticmethod
     def _check_data_quality(df: pd.DataFrame, stats: pd.DataFrame) -> Dict[str, Any]:
-        """Collects data quality metrics.
+        """Summarizes missing values, duplicates, dimensions and constant columns.
+
+        Reuses the supplied statistics table for missing and unique-value counts.
+        Computes duplicate rows directly from the input frame.
+        Returns both overall totals and per-column missing-value details.
 
         Args:
-            df (pd.DataFrame): The analyzed data.
-            stats (pd.DataFrame): Output of `_compute_basic_stats`, reused for the
-                missing and unique counts.
+            df: The analyzed data.
+            stats: Output of `_compute_basic_stats`, reused for missing and unique counts.
 
         Returns:
-            Dict[str, Any]: Row and column counts, missing values, duplicate rows
-            and the names of constant columns.
+            Dict[str, Any]: Dataset dimensions, missing values, duplicate rows and constants.
         """
         missing = stats["missing_count"]
         return {
@@ -138,15 +132,18 @@ class EDAnalyzer(BasePipelineComponent):
     def _analyze_correlations(
         self, df: pd.DataFrame, constant_cols: List[str]
     ) -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
-        """Computes the correlation matrix and finds strongly correlated column pairs.
+        """Calculates configured correlations and identifies strongly related columns.
+
+        Excludes constant columns and uses the configured correlation method.
+        Examines only unique pairs from the upper triangle of the resulting matrix.
+        Keeps pairs whose absolute correlation meets the configured threshold.
 
         Args:
-            df (pd.DataFrame): The analyzed data.
-            constant_cols (List[str]): Columns excluded from the analysis.
+            df: The analyzed data.
+            constant_cols: Columns excluded from the analysis.
 
         Returns:
-            Tuple[pd.DataFrame, List[Dict[str, Any]]]: The correlation matrix and the pairs
-            whose absolute correlation reaches `pipeline.eda.correlation_threshold`.
+            Tuple[pd.DataFrame, List[Dict[str, Any]]]: Correlation matrix and qualifying pairs.
         """
         method = self.config_manager.get_param("pipeline.eda.correlation_method", "pearson")
         threshold = self.config_manager.get_param("pipeline.eda.correlation_threshold", 0.8)
@@ -171,17 +168,19 @@ class EDAnalyzer(BasePipelineComponent):
 
 
     def _detect_outliers_iqr(self, df: pd.DataFrame, constant_cols: List[str]) -> pd.Series:
-        """Counts outliers per numeric column using the interquartile range rule.
+        """Counts numeric outliers using the configured interquartile-range multiplier.
 
         A value is an outlier if it lies more than `pipeline.eda.iqr_multiplier` times
-        the IQR below the first or above the third quartile.
+        the IQR below the first or above the third quartile. Constant columns and
+        non-numeric columns are excluded before quartiles and bounds are calculated.
+        The returned counts are indexed by the remaining column names.
 
         Args:
-            df (pd.DataFrame): The analyzed data.
-            constant_cols (List[str]): Columns excluded from the analysis.
+            df: The analyzed data.
+            constant_cols: Columns excluded from the analysis.
 
         Returns:
-            pd.Series: Number of outliers indexed by column name.
+            pd.Series: Outlier counts indexed by column name.
         """
         multiplier = self.config_manager.get_param("pipeline.eda.iqr_multiplier", 1.5)
         numeric = df.drop(columns=constant_cols).select_dtypes(include="number")
@@ -194,11 +193,18 @@ class EDAnalyzer(BasePipelineComponent):
 
 
     def _plot(self, df: pd.DataFrame, constant_cols: List[str]) -> None:
-        """Renders distributions, correlation matrix and boxplots, if plotting is enabled.
+        """Renders distribution, correlation and boxplot figures when enabled.
+
+        Omits constant columns from each plotted feature and target subset.
+        Sends the stored correlation matrix to its dedicated heatmap renderer.
+        Does nothing when no visualizer was created.
 
         Args:
-            df (pd.DataFrame): The analyzed data.
-            constant_cols (List[str]): Columns excluded from the plots.
+            df: The analyzed data.
+            constant_cols: Columns excluded from the plots.
+
+        Returns:
+            None: Figures are generated as a side effect.
         """
         if self._visualizer is None:
             return
@@ -215,10 +221,11 @@ class EDAnalyzer(BasePipelineComponent):
 
 
     def _save_reports(self) -> None:
-        """Saves the quality report, statistics and correlations as JSON files.
+        """Writes quality, statistics and correlation reports as JSON files.
 
-        Does nothing if `pipeline.eda.save_reports` is false. The files are written
-        to the `eda` subdirectory of `settings.paths.output_dir`.
+        Does nothing if `pipeline.eda.save_reports` is false.
+        Creates the `eda` subdirectory of `settings.paths.output_dir` when required.
+        Serializes the current analysis results to separate report files.
         """
         if not self.config_manager.get_param("pipeline.eda.save_reports", True):
             return
@@ -237,15 +244,21 @@ class EDAnalyzer(BasePipelineComponent):
 
 
 
-    def run(self, df: pd.DataFrame) -> Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]:
-        """Runs the exploratory analysis, renders the plots and saves the reports.
+    def run(
+        self, df: pd.DataFrame, *args: Any, **kwargs: Any
+    ) -> Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]:
+        """Runs exploratory analysis and stores its reports and visualizations.
+
+        Computes descriptive statistics, quality metrics, correlations and IQR outliers.
+        Stores the resulting report data before generating enabled plots and JSON files.
+        Returns the quality report together with the statistics and correlation tables.
 
         Args:
-            df (pd.DataFrame): The data to analyze.
+            df: The data to analyze.
 
         Returns:
-            Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]: The quality report,
-            the descriptive statistics and the correlation matrix.
+            Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]: Quality report, descriptive
+                statistics and correlation matrix.
         """
         self._basic_stats = self._compute_basic_stats(df)
         quality_report = self._check_data_quality(df, self._basic_stats)

@@ -16,33 +16,40 @@ class PreprocessorVisualizer(BaseVisualizer):
     Figures are saved in the `preprocessing` figures subdirectory.
     """
     def __init__(self, config_manager: ConfigManager, name: Optional[str] = None) -> None:
-        """Initializes the visualizer with the `preprocessing` output subdirectory.
+        """Initializes plotting support for preprocessing results.
+
+        Configures the preprocessing-specific output subdirectory.
+        Collects target and feature names that should be labeled as log-transformed.
 
         Args:
-            config_manager (ConfigManager): Configuration manager instance.
-            name (str | None): Component name.
+            config_manager: Configuration manager instance.
+            name: Optional component name.
+
+        Returns:
+            None: The visualizer is ready to render plots.
         """
         super().__init__(config_manager, name, subfolder="preprocessing")
 
         target = config_manager.get_param("pipeline.preprocessing.target")
         log_target = config_manager.get_param("pipeline.preprocessing.log_target", False)
-        log_features: List[str] = config_manager.get_param("pipeline.preprocessing.log_features", []) or []
+        log_features: List[str] = config_manager.get_param(
+            "pipeline.preprocessing.log_features", []
+        ) or []
         self._logged_columns: Set[str] = set(log_features)
         if log_target and target:
             self._logged_columns.add(target)
 
 
-    def run(self) -> None:
-        """Does nothing: the plots are rendered on demand by the `plot_*` methods."""
-
-
     def _build_label(self, col: str, include_unit: bool = False) -> str:
-        """Builds an axis label for a data column, marking the log10 transformed columns.
+        """Builds an axis label that marks columns transformed with log10.
+
+        Delegates untransformed columns to the base visualizer's label builder.
+        Marks transformed columns with a log10 prefix and dimensionless unit when requested.
+        Uses the configured label dictionary to render the original column symbol.
 
         Args:
-            col (str): Column name.
-            include_unit (bool): If True, appends the unit. A log10 transformed column
-                is dimensionless.
+            col: Column name.
+            include_unit: If true, appends the unit; transformed values are dimensionless.
 
         Returns:
             str: The label, e.g. ``$N$ [$\\mathrm{min^{-1}}$]`` or ``$\\log_{10}$ $N$ [$-$]``.
@@ -55,24 +62,61 @@ class PreprocessorVisualizer(BaseVisualizer):
         return f"{label} [$-$]" if include_unit else label
 
 
+    def run(self, *args: Any, **kwargs: Any) -> None:
+        """Provides the pipeline interface without rendering plots eagerly.
+
+        Plot generation is performed only when an explicit `plot_*` method is called.
+        This no-op allows the visualizer to follow the common pipeline component API.
+
+        Returns:
+            None: No work is performed.
+        """
+        
+
     def plot_distributions(self, df_subset: pd.DataFrame, group_name: str) -> None:
-        """Saves histograms with a KDE curve for each column of `df_subset`.
+        """Plots and saves a histogram with a KDE curve for each supplied column.
+
+        Uses the shared grid renderer to label, arrange and save the panels.
+        Empty column subsets are ignored by the grid helper.
+        Log-transformed columns receive dimensionless labels.
 
         Args:
-            df_subset (pd.DataFrame): The columns to plot.
-            group_name (str): Name of the column group, e.g. ``"target"``.
+            df_subset: The columns to plot.
+            group_name: Column group name, e.g. ``"target"``.
+
+        Returns:
+            None: The figure is saved as a side effect.
         """
         def _draw_hist(series: pd.Series, axis: Any) -> None:
+            """Draws a histogram and KDE curve for one data column.
+
+            Uses seaborn to render the distribution and a smooth density estimate.
+            The caller supplies the axes so the plot can be embedded in a figure grid.
+
+            Args:
+                series: Column values to visualize.
+                axis: Matplotlib axes that receives the plot.
+
+            Returns:
+                None: The histogram is drawn as a side effect.
+            """
             sns.histplot(series, kde=True, ax=axis) # type: ignore
 
         self._plot_grid(df_subset, group_name, _draw_hist, "Histogram plot", "histplot")
 
 
     def plot_group_sizes(self, groups: pd.Series) -> None:
-        """Saves a bar chart with the number of rows in each group.
+        """Renders and saves a bar chart of the row count for every group.
+
+        Counts rows per group and orders the bars by group identifier.
+        Labels the chart axes and adds a title for non-exportable figures.
+        Writes the result through the shared figure finalization helper.
 
         Args:
-            groups (pd.Series): Group number of each row.
+            groups: Group number of each row.
+
+        Returns:
+            None: The chart is saved as a side effect.
         """
         sizes = groups.value_counts().sort_index()
         fig, axes = self._create_figure()

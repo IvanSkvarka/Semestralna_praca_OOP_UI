@@ -17,11 +17,16 @@ preprocessing:
   save_reports: false
   generate_plots: false
 
-models:
-  mean_baseline:
-  loglog_linear:
-  gradient_boosting:
-
 evaluation:
   save_reports: true
   generate_plots: true
+
+tuning:
+  n_splits: 3
+  scoring: neg_root_mean_squared_error
+  n_jobs: 1
+  param_grids:
+    GradientBoostingModel:
+      n_estimators: [50, 100, 200, 300, 400, 500]
+      learning_rate: [0.01, 0.05, 0.1]
+      max_depth: [2, 3, 4]

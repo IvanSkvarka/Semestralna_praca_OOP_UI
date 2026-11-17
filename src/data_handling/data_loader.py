@@ -1,4 +1,4 @@
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Any
 from numbers import Integral
 from pathlib import Path
 import pandas as pd
@@ -6,8 +6,8 @@ import pandas as pd
 from base import BasePipelineComponent # pylint: disable=import-error
 from utils.config_manager import ConfigManager # pylint: disable=import-error
 
-ERR_MSG = "The data has not been loaded yet." \
-                 " First, call the `run()` method or call the instance."
+ERR_MSG = "The data has not been loaded yet. " \
+                 "First, call the `run()` method or call the instance."
 
 
 class DataLoader(BasePipelineComponent):
@@ -17,14 +17,16 @@ class DataLoader(BasePipelineComponent):
     The loaded data frame is available through read-only properties after `run()`.
     """
     def __init__(self, config_manager: ConfigManager, name: Optional[str] = None) -> None:
-        """Reads the data path and the column lists from the configuration.
+        """Initializes the loader from the configured dataset path and columns.
 
         If `data.feature_columns` is empty, all columns that are not targets
-        are used as features once the data is loaded.
+        are used as features once the data is loaded. Target and configured
+        feature names are copied to protect the configuration values from changes.
+        The data frame remains unset until `run()` successfully reads the CSV.
 
         Args:
-            config_manager (ConfigManager): Configuration manager instance.
-            name (str | None): Component name.
+            config_manager: Configuration manager instance.
+            name: Optional component name.
         """
         super().__init__(config_manager, name)
         self._file_path = Path(self.config_manager["settings.paths.raw_data"])
@@ -39,11 +41,7 @@ class DataLoader(BasePipelineComponent):
 
     @property
     def data(self) -> pd.DataFrame:
-        """Provides read-only access to the loaded data frame.
-
-        Raises:
-            RuntimeError: If the data has not been loaded yet.
-        """
+        """Returns the loaded data frame, or raises RuntimeError if loading has not completed."""
         if self._data is None:
             raise RuntimeError(ERR_MSG)
         return self._data
@@ -51,17 +49,13 @@ class DataLoader(BasePipelineComponent):
 
     @property
     def target_columns(self) -> List[str]:
-        """Provides a copy of the target column names."""
+        """Returns a copy of the configured target column names."""
         return list(self._target_columns)
 
 
     @property
     def feature_columns(self) -> List[str]:
-        """Provides a copy of the feature column names.
-
-        Raises:
-            RuntimeError: If no feature columns are configured and the data has not been loaded.
-        """
+        """Returns the feature column names or raises RuntimeError if they are not yet available."""
         if self._feature_columns is None:
             raise RuntimeError(ERR_MSG)
         return list(self._feature_columns)
@@ -69,21 +63,28 @@ class DataLoader(BasePipelineComponent):
 
     @property
     def feature_data(self) -> pd.DataFrame:
-        """Provides the feature columns of the loaded data."""
+        """Returns the loaded data restricted to its configured feature columns."""
         return self.data[self.feature_columns]
 
 
     @property
     def target_data(self) -> pd.DataFrame:
-        """Provides the target columns of the loaded data."""
+        """Returns the loaded data restricted to its configured target columns."""
         return self.data[self.target_columns]
 
 
-    def run(self) -> pd.DataFrame:
-        """Loads the CSV file and checks it against the configured columns.
+
+    def run(
+        self, *args: Any, **kwargs: Any
+    ) -> pd.DataFrame:
+        """Reads and validates the configured CSV dataset.
+
+        Loads the file into a data frame and rejects empty datasets.
+        Infers feature columns from non-target columns when none were configured.
+        Stores the validated frame for subsequent property and index access.
 
         Returns:
-            pd.DataFrame: The loaded data frame.
+            pd.DataFrame: The loaded and validated data frame.
 
         Raises:
             FileNotFoundError: If the CSV file does not exist.
@@ -106,18 +107,29 @@ class DataLoader(BasePipelineComponent):
 
 
     def __len__(self) -> int:
-        """Calculates the total number of row entries within the dataset."""
+        """Returns the number of rows in the loaded dataset.
+
+        Delegates to the data frame accessor, so accessing the length before loading
+        also raises the same runtime error as accessing the data directly.
+
+        Returns:
+            int: Number of rows in the loaded data frame.
+        """
         return len(self.data)
 
 
     def __getitem__(self, key: Union[int, slice, str, List[str]]) -> Union[pd.Series, pd.DataFrame]:
-        """Selects rows by position or columns by name.
+        """Selects dataset rows by position or columns by name.
+
+        Integer and slice keys are applied through positional indexing.
+        String keys and lists of strings select data frame columns.
+        Unsupported key types are rejected.
 
         Args:
-            key (int | slice | str | List[str]): Row position or slice, or column name(s).
+            key: Row position or slice, or column name(s).
 
         Returns:
-            pd.Series | pd.DataFrame: The selected row(s) or column(s).
+            pd.Series | pd.DataFrame: The selected row or rows, or selected column data.
 
         Raises:
             TypeError: If the key type is not supported.

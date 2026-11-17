@@ -29,16 +29,17 @@ class BaseVisualizer(BasePipelineComponent):
         name: Optional[str] = None,
         subfolder: str = "",
     ) -> None:
-        """Reads the visualization settings and prepares the matplotlib style.
+        """Initializes plotting settings, labels and the output location.
 
         Figures are saved as PDF with the style from the configuration if
         `visualization.exportable` is true, otherwise as PNG and optionally shown.
-        Exportable figures are never shown interactively.
+        Exportable figures are never shown interactively. Configures shared seaborn styling
+        and applies the publication style when exportable output is requested.
 
         Args:
-            config_manager (ConfigManager): Configuration manager instance.
-            name (str | None): Component name.
-            subfolder (str): Subdirectory of `settings.paths.figures_dir` for the figures.
+            config_manager: Configuration manager instance.
+            name: Optional component name.
+            subfolder: Subdirectory of `settings.paths.figures_dir` for figures.
         """
         super().__init__(config_manager, name)
         self._exportable: bool = bool(config_manager["visualization.exportable"])
@@ -58,10 +59,11 @@ class BaseVisualizer(BasePipelineComponent):
 
 
     def _setup_style(self) -> None:
-        """Applies the font and size settings from the configuration to matplotlib.
+        """Applies configured font, scale and text-rendering options to matplotlib.
 
         LaTeX text rendering is enabled only if `visualization.use_tex` is true
-        and a LaTeX installation is found, otherwise a warning is raised.
+        and a LaTeX installation is found, otherwise a warning is raised. Derives
+        tick and legend sizes from the configured font scale before updating rcParams.
         """
         use_tex = bool(self.config_manager["visualization.use_tex"])
         if use_tex and shutil.which("latex") is None:
@@ -86,16 +88,19 @@ class BaseVisualizer(BasePipelineComponent):
     def _create_figure(
         self, nrows: int = 1, ncols: int = 1, square: bool = False
     ) -> Tuple[Figure, Any]:
-        """Creates a figure with a grid of axes sized from `visualization.width_pt`.
+        """Creates a matplotlib figure with axes sized from the configured print width.
+
+        Converts the configured width from points to inches and derives figure height.
+        Uses a square aspect ratio when requested, otherwise applies the golden ratio.
+        Returns the axes flattened into a one-dimensional array for convenient iteration.
 
         Args:
-            nrows (int): Number of grid rows.
-            ncols (int): Number of grid columns.
-            square (bool): If True, each panel is square, otherwise it follows
-                the golden ratio.
+            nrows: Number of grid rows.
+            ncols: Number of grid columns.
+            square: If true, each panel is square; otherwise it follows the golden ratio.
 
         Returns:
-            Tuple[Figure, Any]: The figure and a flat array of its axes.
+            Tuple[Figure, Any]: Figure and a flat array of its axes.
         """
         width_in = self._width_pt / 72.27
         ratio = 1.0 if square else GOLDEN_RATIO
@@ -106,17 +111,18 @@ class BaseVisualizer(BasePipelineComponent):
 
 
     def _build_label(self, col: str, include_unit: bool = False) -> str:
-        """Builds an axis label for a data column.
+        """Builds a display label from a column name and optional unit metadata.
 
         Uses the symbol from the dictionary, or the column name with spaces instead
-        of underscores if there is no symbol.
+        of underscores if there is no symbol. When requested, appends the configured
+        unit or a dash when the column has no unit entry.
 
         Args:
-            col (str): Column name.
-            include_unit (bool): If True, appends the unit from the dictionary.
+            col: Column name.
+            include_unit: If true, appends the unit from the dictionary.
 
         Returns:
-            str: The label, e.g. ``$N$ [$\\mathrm{min^{-1}}$]``.
+            str: Formatted axis label.
         """
         label = self._labels.get(col, col.replace("_", " "))
         if include_unit:
@@ -125,11 +131,18 @@ class BaseVisualizer(BasePipelineComponent):
 
 
     def _finalize_plot(self, fig: Figure, filename: str) -> None:
-        """Saves the figure to the output directory, optionally shows it, and closes it.
+        """Lays out, saves, optionally displays and closes a matplotlib figure.
+
+        Creates the configured output directory before writing the selected file format.
+        Displays the figure only when interactive display is enabled.
+        Closes the figure after output handling to release plotting resources.
 
         Args:
-            fig (Figure): The figure to save.
-            filename (str): File name without extension.
+            fig: The figure to save.
+            filename: File name without extension.
+
+        Returns:
+            None: The figure is written and closed as a side effect.
         """
         fig.tight_layout()
 
@@ -151,16 +164,21 @@ class BaseVisualizer(BasePipelineComponent):
         title_prefix: str,
         file_suffix: str,
     ) -> None:
-        """Draws every column of `df_subset` into its own panel of one saved figure.
+        """Creates a multi-panel figure by applying a drawing callback to each column.
 
-        Does nothing if `df_subset` has no columns.
+        Divides columns across a two-column grid and labels each panel with its unit.
+        Removes unused axes, applies a title for non-exportable figures and saves the result.
+        Does nothing when the supplied frame contains no columns.
 
         Args:
-            df_subset (pd.DataFrame): The columns to plot.
-            group_name (str): Name of the column group, used in the title and the file name.
-            plot_fn (Callable): Function that draws one column (Series) on the given axes.
-            title_prefix (str): Start of the figure title, shown only for non-exportable figures.
-            file_suffix (str): Suffix of the file name.
+            df_subset: The columns to plot.
+            group_name: Column group name used in the title and file name.
+            plot_fn: Callback that draws one column on its axes.
+            title_prefix: Title prefix for non-exportable figures.
+            file_suffix: Suffix appended to the output file name.
+
+        Returns:
+            None: The figure is saved as a side effect.
         """
         columns = df_subset.columns
         if columns.empty:

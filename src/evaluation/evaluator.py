@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
-
+import json
 import numpy as np
 import pandas as pd
 from sklearn.base import clone
@@ -12,7 +12,8 @@ from utils.config_manager import ConfigManager # pylint: disable=import-error
 from models.base_model import BaseModel # pylint: disable=import-error
 from visualization.evaluation_visualizer import EvaluationVisualizer # pylint: disable=import-error
 
-ERR_MSG = "Evaluator has not been run yet. First, call the `run()` method or call the instance."
+ERR_MSG = "Evaluator has not been run yet. " \
+                 "First, call the `run()` method or call the instance."
 
 
 class Metrics:
@@ -21,11 +22,28 @@ class Metrics:
     If the target is on the log10 scale, the metrics are reported on the log10 scale
     and on the original scale (`*_orig`). Otherwise only the plain metrics are used.
     """
+    __instance = None
+
+
+    def __new__(cls, log_target: bool = True) -> "Metrics":
+        """Singleton implementation"""
+        if cls.__instance is None:
+            cls.__instance = object.__new__(cls)
+        return cls.__instance
+
+
     def __init__(self, log_target: bool = True) -> None:
-        """Defines the metric functions.
+        """Configures regression metrics for the target scale used by the pipeline.
+
+        Uses log-scale scores and inverse-transformed error metrics when logging is enabled.
+        Otherwise configures R-squared, root mean squared error and mean absolute error.
+        Preserves metric insertion order so the first metric can serve as the main score.
 
         Args:
-            log_target (bool): Whether the target is on the log10 scale.
+            log_target: Whether the target is on the log10 scale.
+
+        Returns:
+            None: The metric functions are stored on this instance.
         """
         self.funcs: Dict[str, Callable[[np.ndarray, np.ndarray], float]]
         if log_target:
@@ -43,24 +61,37 @@ class Metrics:
                 "mae": mean_absolute_error,
             }
 
+
+
     @property
     def main_metric(self) -> str:
-        """Provides the name of the metric used to sort the models."""
+        """Returns the first configured metric, used to sort model results."""
         return next(iter(self.funcs))
 
-    def compute(self, y_true: Union[pd.Series, np.ndarray], y_pred: Union[pd.Series, np.ndarray]) -> Dict[str, float]:
-        """Computes all metrics.
+
+
+    def compute(
+            self,
+            y_true: Union[pd.Series, np.ndarray], 
+            y_pred: Union[pd.Series, np.ndarray]
+        ) -> Dict[str, float]:
+        """Computes every configured metric for true and predicted targets.
+
+        Converts both inputs to floating-point NumPy arrays before evaluation.
+        Applies each configured metric function to the same pair of arrays.
+        Returns the scores under their configured names.
 
         Args:
-            y_true (pd.Series | np.ndarray): True target values.
-            y_pred (pd.Series | np.ndarray): Predicted target values.
+            y_true: True target values.
+            y_pred: Predicted target values.
 
         Returns:
-            Dict[str, float]: The metric values by name.
+            Dict[str, float]: Metric values keyed by metric name.
         """
         y_t = np.asarray(y_true, dtype=float)
         y_p = np.asarray(y_pred, dtype=float)
         return {name: float(func(y_t, y_p)) for name, func in self.funcs.items()}
+
 
 
 class Evaluator(BasePipelineComponent):
@@ -73,19 +104,27 @@ class Evaluator(BasePipelineComponent):
     passed to its `fit()` so that an inner group-wise search does not leak data.
     """
     def __init__(self, config_manager: ConfigManager, name: Optional[str] = None) -> None:
-        """Reads the evaluation settings and creates the visualizer if plotting is enabled.
+        """Initializes evaluation settings and optional visualization support.
+
+        Reads split, random-state and target-scale options from configuration.
+        Initializes stored evaluation results as unavailable until `run()` completes.
+        Creates an evaluation visualizer only when plot generation is enabled.
 
         Args:
-            config_manager (ConfigManager): Configuration manager instance.
-            name (str | None): Component name.
+            config_manager: Configuration manager instance.
+            name: Optional component name.
         """
         super().__init__(config_manager, name)
-        self._test_size: float = float(self.config_manager.get_param("pipeline.evaluation.test_size", 0.2))
-        self._random_state: Optional[int] = self.config_manager.get_param("pipeline.random_state")
-        self._metrics = Metrics(bool(self.config_manager.get_param("pipeline.preprocessing.log_target", True)))
+        self._test_size: float = float(
+            self.config_manager.get_param("pipeline.evaluation.test_size", 0.2)
+        )
+        self._metrics = Metrics(bool(
+            self.config_manager.get_param("pipeline.preprocessing.log_target", True)
+        ))
         self._comparison_table: Optional[pd.DataFrame] = None
         self._predictions: Optional[pd.DataFrame] = None
         self._y_test: Optional[pd.Series] = None
+        self._best_params: Optional[Dict[str, Any]] = None
 
         self._visualizer: Optional[EvaluationVisualizer] = (
             EvaluationVisualizer(config_manager, name=f"{self.name}Visualizer")
@@ -94,13 +133,10 @@ class Evaluator(BasePipelineComponent):
         )
 
 
+
     @property
     def comparison_table(self) -> pd.DataFrame:
-        """Provides the table of test metrics, one row per model, sorted from the best.
-
-        Raises:
-            RuntimeError: If `run()` has not been called yet.
-        """
+        """Returns sorted test metrics, or raises RuntimeError if evaluation has not run."""
         if self._comparison_table is None:
             raise RuntimeError(ERR_MSG)
         return self._comparison_table
@@ -108,11 +144,7 @@ class Evaluator(BasePipelineComponent):
 
     @property
     def predictions(self) -> pd.DataFrame:
-        """Provides the predictions for the test rows, one column per model.
-
-        Raises:
-            RuntimeError: If `run()` has not been called yet.
-        """
+        """Returns per-model test predictions, or raises RuntimeError if evaluation has not run."""
         if self._predictions is None:
             raise RuntimeError(ERR_MSG)
         return self._predictions
@@ -120,24 +152,36 @@ class Evaluator(BasePipelineComponent):
 
     @property
     def y_test(self) -> pd.Series:
-        """Provides the true target of the test rows.
-
-        Raises:
-            RuntimeError: If `run()` has not been called yet.
-        """
+        """Returns the true test targets, or raises RuntimeError if evaluation has not run."""
         if self._y_test is None:
             raise RuntimeError(ERR_MSG)
         return self._y_test
 
 
+
     @staticmethod
     def _model_name(model: Union[BaseModel, GridSearchCV]) -> str:
-        """Returns the name of a model or of the model wrapped by a `GridSearchCV`."""
-        return model.estimator.name if isinstance(model, GridSearchCV) else model.name
+        """Resolves the display name for a model or a model wrapped by grid search.
+
+        Reads the estimator name from `GridSearchCV` instances.
+        Uses the model's own name for unwrapped base models.
+
+        Args:
+            model: Model instance or grid search wrapper.
+
+        Returns:
+            str: Name used to identify the model in evaluation output.
+        """
+        return model.estimator.name if isinstance(model, GridSearchCV) else model.name # type: ignore
+
 
 
     def _plot(self) -> None:
-        """Renders the comparison of the metrics, the predictions and the residuals, if plotting is enabled."""
+        """Renders metric comparisons and test predictions when plotting is enabled.
+
+        Does nothing when no evaluation visualizer was created.
+        Otherwise passes the stored comparison table, target and predictions to it.
+        """
         if self._visualizer is None:
             return
 
@@ -146,13 +190,24 @@ class Evaluator(BasePipelineComponent):
 
 
     def _save_report(self) -> None:
-        """Saves the table of test metrics as JSON, if `pipeline.evaluation.save_reports` is true."""
-        if self.config_manager.get_param("pipeline.evaluation.save_reports", True):
+        """Writes the test-metrics table to the evaluation output directory.
+
+        Returns immediately when `pipeline.evaluation.save_reports` is not true.
+        Otherwise creates the output directory and serializes the table as JSON.
+        """
+        if not self.config_manager.get_param("pipeline.evaluation.save_reports", True):
             return
 
-        out_dir = Path(self.config_manager.get_param("settings.paths.output_dir", "output")) / "evaluation"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        self.comparison_table.to_json(out_dir / "evaluation_summary.json", orient="index", indent=4)
+        output_dir = Path(
+            self.config_manager.get_param("settings.paths.output_dir", "output")
+        ) / "evaluation"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        self.comparison_table.to_json(
+            output_dir / "evaluation_summary.json", orient="index", indent=4
+        )
+        with open(output_dir / "GridSearchCV_best_params.json", mode="w", encoding="utf-8") as file:
+            json.dump(self._best_params, file, indent=4, ensure_ascii=False)
+
 
 
     def run(
@@ -161,18 +216,23 @@ class Evaluator(BasePipelineComponent):
         X: pd.DataFrame,
         y: pd.Series,
         groups: pd.Series,
+        *args: Any,
+        **kwargs: Any
     ) -> pd.DataFrame:
-        """Splits the groups, fits the models, evaluates them on the test rows and saves the results.
+        """Evaluates models on a group-separated test set and stores their predictions.
+
+        Splits unique group labels so rows from one group cannot cross the train-test boundary.
+        Clones and fits each model, passing training groups to grid-search estimators.
+        Computes configured metrics, sorts the comparison table and generates enabled outputs.
 
         Args:
-            models (BaseModel | GridSearchCV | Sequence): One model or a list of models.
-            X (pd.DataFrame): The features.
-            y (pd.Series): The preprocessed target.
-            groups (pd.Series): The group number of each row.
+            models: One model or a sequence of models and grid-search wrappers.
+            X: The feature matrix.
+            y: The preprocessed target.
+            groups: Group label for each row.
 
         Returns:
-            pd.DataFrame: One row per model with the metrics computed on the test rows,
-            sorted from the best model.
+            pd.DataFrame: Test metrics with one row per model, sorted by the main metric.
 
         Raises:
             ValueError: If the models have duplicate names.
@@ -185,11 +245,14 @@ class Evaluator(BasePipelineComponent):
             raise ValueError(f"Model names must be unique, got {names}.")
 
         train_groups, _ = train_test_split(
-            groups.unique(), test_size=self._test_size, random_state=self._random_state
+            groups.unique(),
+            test_size=self._test_size,
+            random_state=self.config_manager.get_param("pipeline.random_state")
         )
+
         train_mask = groups.isin(train_groups).to_numpy()
-        X_train, y_train, groups_train = X[train_mask], y[train_mask], groups[train_mask]
-        X_test, y_test = X[~train_mask], y[~train_mask] # ~ je inverzia masky
+        x_train, y_train, groups_train = X[train_mask], y[train_mask], groups[train_mask]
+        x_test, y_test = X[~train_mask], y[~train_mask] # ~ je inverzia masky
 
         predictions: Dict[str, np.ndarray] = {}
         rows: List[Dict[str, Any]] = []
@@ -197,14 +260,17 @@ class Evaluator(BasePipelineComponent):
         for name, model in zip(names, model_list):
             fitted = clone(model)
             if isinstance(fitted, GridSearchCV):
-                fitted.fit(X_train, y_train, groups=groups_train)
+                fitted.fit(x_train, y_train, groups=groups_train)
+                self._best_params = fitted.best_params_
             else:
-                fitted.fit(X_train, y_train)
-            predictions[name] = fitted.predict(X_test)
+                fitted.fit(x_train, y_train)
+            predictions[name] = fitted.predict(x_test)
             rows.append({"model": name, **self._metrics.compute(y_test, predictions[name])})
 
         self._comparison_table = (
-            pd.DataFrame(rows).set_index("model").sort_values(self._metrics.main_metric, ascending=False)
+            pd.DataFrame(rows).set_index("model").sort_values(
+                self._metrics.main_metric, ascending=False
+            )
         )
         self._predictions = pd.DataFrame(predictions, index=y_test.index)
         self._y_test = y_test

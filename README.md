@@ -22,7 +22,8 @@ vykoná ich validáciu, transformáciu a natrénuje regresný model schopný pre
 │   │   ├── correlation_matrix.json
 │   │   └── dataset_info.json
 │   ├── evaluation
-│   │   └── evaluation_summary.json
+│   │   ├── evaluation_summary.json
+│   │   └── GridSearchCV_best_params.json
 │   ├── figures
 │   │   ├── eda
 │   │   │   ├── correlation_matrix.pdf
@@ -30,6 +31,9 @@ vykoná ich validáciu, transformáciu a natrénuje regresný model schopný pre
 │   │   │   ├── feature_columns_histplot.pdf
 │   │   │   ├── target_columns_boxplot.pdf
 │   │   │   └── target_columns_histplot.pdf
+│   │   ├── evaluation
+│   │   │   ├── metrics_comparison.pdf
+│   │   │   └── predicted_vs_true.pdf
 │   │   └── preprocessing
 │   │       ├── features_histplot.pdf
 │   │       ├── group_sizes.pdf
@@ -44,7 +48,8 @@ vykoná ich validáciu, transformáciu a natrénuje regresný model schopný pre
 │   │   └── preprocessor.py
 │   ├── evaluation
 │   │   ├── evaluator.py
-│   │   └── __init__.py
+│   │   ├── __init__.py
+│   │   └── tuner.py
 │   ├── models
 │   │   ├── base_model.py
 │   │   ├── gradientboosting_model.py
@@ -58,11 +63,11 @@ vykoná ich validáciu, transformáciu a natrénuje regresný model schopný pre
 │   ├── visualization
 │   │   ├── base_visualizer.py
 │   │   ├── eda_visualizer.py
+│   │   ├── evaluation_visualizer.py
 │   │   ├── __init__.py
 │   │   └── preprocessor_visualizer.py
 │   ├── base.py
 │   └── main.py
 ├── LICENSE
 └── README.md
-
 ```

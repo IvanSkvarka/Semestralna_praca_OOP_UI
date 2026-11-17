@@ -12,11 +12,15 @@ class BasePipelineComponent(ABC):
     a step is executed by `run()` or by calling the instance like a function.
     """
     def __init__(self, config_manager: ConfigManager, name: Optional[str] = None) -> None:
-        """Stores the shared configuration manager and the component name.
+        """Initializes a pipeline component with shared configuration and a display name.
+
+        Stores the configuration manager for use by the component and its subclasses.
+        Uses the class name when no explicit component name is supplied.
+        The resulting name is also used to identify related pipeline helpers.
 
         Args:
-            config_manager (ConfigManager): Configuration manager instance.
-            name (str | None): Component name. Defaults to the class name.
+            config_manager: Configuration manager shared with this component.
+            name: Optional component name; defaults to the class name.
         """
         self._config_manager = config_manager
         self._name = name if name is not None else self.__class__.__name__
@@ -38,16 +42,31 @@ class BasePipelineComponent(ABC):
 
     @abstractmethod
     def run(self, *args: Any, **kwargs: Any) -> Any:
-        """Executes the step. Each subclass defines its own explicit arguments."""
+        """Executes the pipeline step implemented by a concrete component.
+
+        Subclasses provide the operation and define its required arguments.
+        The result depends on the work performed by the component.
+
+        Args:
+            *args: Positional arguments accepted by the concrete implementation.
+            **kwargs: Keyword arguments accepted by the concrete implementation.
+
+        Returns:
+            Any: The result produced by the concrete pipeline step.
+        """
 
 
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        """Calls `run()` with the given arguments.
+        """Executes the component by forwarding arguments to its `run()` method.
+
+        This makes pipeline components callable as a convenient shorthand.
+        Positional and keyword arguments are passed through unchanged.
+        The return value is the one produced by `run()`.
 
         Args:
-            *args (Any): Positional arguments forwarded to `run()`.
-            **kwargs (Any): Keyword arguments forwarded to `run()`.
+            *args: Positional arguments forwarded to `run()`.
+            **kwargs: Keyword arguments forwarded to `run()`.
 
         Returns:
             Any: The result of `run()`.
@@ -56,7 +75,14 @@ class BasePipelineComponent(ABC):
 
 
     def __repr__(self) -> str:
-        """Returns a text representation with the class, name and config directory."""
+        """Builds a diagnostic string containing the component identity and config path.
+
+        Uses the concrete class name and configured component name.
+        Reads the configuration directory from the shared configuration manager.
+
+        Returns:
+            str: A concise representation of this pipeline component.
+        """
         return (
             f"<{self.__class__.__name__}(name={self._name}, "
             f"config_dir={self._config_manager.config_dir})>"

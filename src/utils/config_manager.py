@@ -13,13 +13,17 @@ class ConfigManager(BaseConfigManager):
     ``a: {b: 1}`` loaded from ``settings.yaml`` is available as ``settings.a.b``.
     """
     def load_config(self, config_name: Union[str, List[str]]) -> None:
-        """Loads one or more YAML files from the configuration directory.
+        """Loads named YAML configuration files from the configured directory.
 
-        A missing file only raises a warning and is skipped. An empty file is
-        stored as an empty dictionary.
+        Resolves each name to a `.yaml` file and parses existing files with `yaml.safe_load`.
+        Missing files produce a warning and are skipped, while empty files become dictionaries.
+        Parsed mappings are stored under the corresponding file name.
 
         Args:
-            config_name (str | List[str]): File name without extension, or a list of them.
+            config_name: File name without extension, or a list of file names.
+
+        Returns:
+            None: Loaded values are stored on this manager.
         """
         names = [config_name] if isinstance(config_name, str) else config_name
         for name in names:
@@ -36,11 +40,15 @@ class ConfigManager(BaseConfigManager):
 
 
     def get_param(self, key: str, default: Any = None) -> Any:
-        """Returns a nested value addressed by a dot-separated key.
+        """Retrieves a nested configuration value using a dotted key.
+
+        Starts from the loaded configuration mapping and resolves each key segment in order.
+        If a segment is missing or the current value cannot be indexed, lookup stops.
+        In that case the supplied default is returned.
 
         Args:
-            key (str): Dot-separated path, e.g. ``"settings.paths.raw_data"``.
-            default (Any): Value returned if any part of the path does not exist.
+            key: Dot-separated path, e.g. ``"settings.paths.raw_data"``.
+            default: Value returned if any part of the path does not exist.
 
         Returns:
             Any: The stored value or `default`.
