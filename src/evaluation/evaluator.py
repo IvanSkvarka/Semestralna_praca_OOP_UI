@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from sklearn.base import clone
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
-from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.model_selection import GridSearchCV, GroupKFold
 
 from base import BasePipelineComponent # pylint: disable=import-error
 from utils.config_manager import ConfigManager # pylint: disable=import-error
@@ -95,18 +95,19 @@ class Metrics:
 
 
 class Evaluator(BasePipelineComponent):
-    """A pipeline component that compares models on a held-out test set.
+    """A pipeline component that compares models by group-wise cross-validation.
 
-    The groups (geometric families) are split into a training and a test part with
-    `train_test_split`, so that rows of one group never appear in both parts. Each model
-    is fitted on the training rows and evaluated on the test rows. A model can be a
-    `BaseModel` or a `GridSearchCV` wrapping one; the groups of the training rows are
-    passed to its `fit()` so that an inner group-wise search does not leak data.
+    The outer loop is a `GroupKFold` over the groups (geometric families), so rows of one
+    group never appear in both the training and the test part of a fold. Each model is
+    fitted on the training rows of every fold and evaluated on the held-out rows. A model
+    can be a `BaseModel` or a `GridSearchCV` wrapping one (nested cross-validation); the
+    groups of the training rows are passed to its `fit()` so that the inner group-wise
+    search does not leak data.
     """
     def __init__(self, config_manager: ConfigManager, name: Optional[str] = None) -> None:
         """Initializes evaluation settings and optional visualization support.
 
-        Reads split, random-state and target-scale options from configuration.
+        Reads the number of outer folds and the target-scale option from configuration.
         Initializes stored evaluation results as unavailable until `run()` completes.
         Creates an evaluation visualizer only when plot generation is enabled.
 
@@ -115,16 +116,16 @@ class Evaluator(BasePipelineComponent):
             name: Optional component name.
         """
         super().__init__(config_manager, name)
-        self._test_size: float = float(
-            self.config_manager.get_param("pipeline.evaluation.test_size", 0.2)
+        self._n_splits: int = int(
+            self.config_manager.get_param("pipeline.evaluation.n_splits", 5)
         )
         self._metrics = Metrics(bool(
             self.config_manager.get_param("pipeline.preprocessing.log_target", True)
         ))
         self._comparison_table: Optional[pd.DataFrame] = None
         self._predictions: Optional[pd.DataFrame] = None
-        self._y_test: Optional[pd.Series] = None
-        self._best_params: Optional[Dict[str, Any]] = None
+        self._y_true: Optional[pd.Series] = None
+        self._best_params: Dict[str, List[Dict[str, Any]]] = {}
 
         self._visualizer: Optional[EvaluationVisualizer] = (
             EvaluationVisualizer(config_manager, name=f"{self.name}Visualizer")
@@ -136,7 +137,11 @@ class Evaluator(BasePipelineComponent):
 
     @property
     def comparison_table(self) -> pd.DataFrame:
-        """Returns sorted test metrics, or raises RuntimeError if evaluation has not run."""
+        """Returns the metrics sorted from the best model, or raises RuntimeError if evaluation has not run.
+
+        Each row holds the metrics computed on all out-of-fold predictions together and
+        the mean and standard deviation (`*_mean`, `*_std`) of each metric over the folds.
+        """
         if self._comparison_table is None:
             raise RuntimeError(ERR_MSG)
         return self._comparison_table
@@ -144,18 +149,18 @@ class Evaluator(BasePipelineComponent):
 
     @property
     def predictions(self) -> pd.DataFrame:
-        """Returns per-model test predictions, or raises RuntimeError if evaluation has not run."""
+        """Returns the out-of-fold predictions of each model, or raises RuntimeError if evaluation has not run."""
         if self._predictions is None:
             raise RuntimeError(ERR_MSG)
         return self._predictions
 
 
     @property
-    def y_test(self) -> pd.Series:
-        """Returns the true test targets, or raises RuntimeError if evaluation has not run."""
-        if self._y_test is None:
+    def y_true(self) -> pd.Series:
+        """Returns the true target of all rows, or raises RuntimeError if evaluation has not run."""
+        if self._y_true is None:
             raise RuntimeError(ERR_MSG)
-        return self._y_test
+        return self._y_true
 
 
 
@@ -177,7 +182,7 @@ class Evaluator(BasePipelineComponent):
 
 
     def _plot(self) -> None:
-        """Renders metric comparisons and test predictions when plotting is enabled.
+        """Renders metric comparisons and out-of-fold predictions when plotting is enabled.
 
         Does nothing when no evaluation visualizer was created.
         Otherwise passes the stored comparison table, target and predictions to it.
@@ -186,14 +191,16 @@ class Evaluator(BasePipelineComponent):
             return
 
         self._visualizer.plot_metrics(self.comparison_table)
-        self._visualizer.plot_predictions(self.y_test, self.predictions)
+        self._visualizer.plot_predictions(self.y_true, self.predictions)
 
 
     def _save_report(self) -> None:
-        """Writes the test-metrics table to the evaluation output directory.
+        """Writes the metrics table and the best grid-search parameters to the output directory.
 
         Returns immediately when `pipeline.evaluation.save_reports` is not true.
-        Otherwise creates the output directory and serializes the table as JSON.
+        Otherwise creates the output directory and serializes the table as JSON. The best
+        parameters found by the inner search in each outer fold are saved per model, if
+        any model was tuned.
         """
         if not self.config_manager.get_param("pipeline.evaluation.save_reports", True):
             return
@@ -205,8 +212,11 @@ class Evaluator(BasePipelineComponent):
         self.comparison_table.to_json(
             output_dir / "evaluation_summary.json", orient="index", indent=4
         )
-        with open(output_dir / "GridSearchCV_best_params.json", mode="w", encoding="utf-8") as file:
-            json.dump(self._best_params, file, indent=4, ensure_ascii=False)
+        if self._best_params:
+            with open(
+                output_dir / "GridSearchCV_best_params.json", mode="w", encoding="utf-8"
+            ) as file:
+                json.dump(self._best_params, file, indent=4, ensure_ascii=False)
 
 
 
@@ -219,11 +229,12 @@ class Evaluator(BasePipelineComponent):
         *args: Any,
         **kwargs: Any
     ) -> pd.DataFrame:
-        """Evaluates models on a group-separated test set and stores their predictions.
+        """Evaluates models by group-wise cross-validation and stores their predictions.
 
-        Splits unique group labels so rows from one group cannot cross the train-test boundary.
-        Clones and fits each model, passing training groups to grid-search estimators.
-        Computes configured metrics, sorts the comparison table and generates enabled outputs.
+        Splits the rows with `GroupKFold`, so rows from one group never cross the
+        train-test boundary of a fold. Clones and fits each model on every training part,
+        passing the groups to grid-search estimators, and predicts the held-out part.
+        Computes the metrics on every fold and on all out-of-fold predictions together.
 
         Args:
             models: One model or a sequence of models and grid-search wrappers.
@@ -232,10 +243,11 @@ class Evaluator(BasePipelineComponent):
             groups: Group label for each row.
 
         Returns:
-            pd.DataFrame: Test metrics with one row per model, sorted by the main metric.
+            pd.DataFrame: Metrics with one row per model, sorted by the main metric.
 
         Raises:
-            ValueError: If the models have duplicate names.
+            ValueError: If the models have duplicate names or `n_splits` is greater
+                than the number of groups.
         """
         model_list: List[Union[BaseModel, GridSearchCV]] = (
             list(models) if isinstance(models, (list, tuple)) else [models] # type: ignore
@@ -243,37 +255,47 @@ class Evaluator(BasePipelineComponent):
         names = [self._model_name(model) for model in model_list]
         if len(set(names)) != len(names):
             raise ValueError(f"Model names must be unique, got {names}.")
+        if self._n_splits > groups.nunique():
+            raise ValueError(
+                f"n_splits={self._n_splits} is greater than the number of groups "
+                f"({groups.nunique()})."
+            )
 
-        train_groups, _ = train_test_split(
-            groups.unique(),
-            test_size=self._test_size,
-            random_state=self.config_manager.get_param("pipeline.random_state")
-        )
-
-        train_mask = groups.isin(train_groups).to_numpy()
-        x_train, y_train, groups_train = X[train_mask], y[train_mask], groups[train_mask]
-        x_test, y_test = X[~train_mask], y[~train_mask] # ~ je inverzia masky
-
+        splits = list(GroupKFold(n_splits=self._n_splits).split(X, y, groups))
         predictions: Dict[str, np.ndarray] = {}
         rows: List[Dict[str, Any]] = []
+        self._best_params = {}
 
         for name, model in zip(names, model_list):
-            fitted = clone(model)
-            if isinstance(fitted, GridSearchCV):
-                fitted.fit(x_train, y_train, groups=groups_train)
-                self._best_params = fitted.best_params_
-            else:
-                fitted.fit(x_train, y_train)
-            predictions[name] = fitted.predict(x_test)
-            rows.append({"model": name, **self._metrics.compute(y_test, predictions[name])})
+            oof = np.empty(len(y))
+            fold_metrics: List[Dict[str, float]] = []
+
+            for train_idx, test_idx in splits:
+                fitted = clone(model)
+                if isinstance(fitted, GridSearchCV):
+                    fitted.fit(X.iloc[train_idx], y.iloc[train_idx], groups=groups.iloc[train_idx])
+                    self._best_params.setdefault(name, []).append(fitted.best_params_)
+                else:
+                    fitted.fit(X.iloc[train_idx], y.iloc[train_idx])
+                oof[test_idx] = fitted.predict(X.iloc[test_idx])
+                fold_metrics.append(self._metrics.compute(y.iloc[test_idx], oof[test_idx]))
+
+            summary: Dict[str, float] = {}
+            for metric in self._metrics.funcs:
+                values = [fold[metric] for fold in fold_metrics]
+                summary[f"{metric}_mean"] = float(np.mean(values))
+                summary[f"{metric}_std"] = float(np.std(values, ddof=1))
+
+            predictions[name] = oof
+            rows.append({"model": name, **self._metrics.compute(y, oof), **summary})
 
         self._comparison_table = (
             pd.DataFrame(rows).set_index("model").sort_values(
                 self._metrics.main_metric, ascending=False
             )
         )
-        self._predictions = pd.DataFrame(predictions, index=y_test.index)
-        self._y_test = y_test
+        self._predictions = pd.DataFrame(predictions, index=y.index)
+        self._y_true = y
 
         self._plot()
         self._save_report()

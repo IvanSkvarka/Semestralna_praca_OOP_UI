@@ -41,8 +41,8 @@ class MeanBaselineModel(BaseModel):
         Returns:
             MeanBaselineModel: This fitted model instance.
         """
-        self.model_ = DummyRegressor()
-        self.model_.fit(X_train, y_train)
+        self._model = DummyRegressor()
+        self._model.fit(X_train, y_train)
         return self
 
 
@@ -62,4 +62,15 @@ class MeanBaselineModel(BaseModel):
             RuntimeError: If the model has not been fitted.
         """
         self._check_is_fitted()
-        return self.model_.predict(X_test) # type: ignore
+        return self._model.predict(X_test) # type: ignore
+
+
+    @property
+    def constant(self) -> float:
+        """Returns the training-target mean predicted for every row.
+
+        Raises:
+            RuntimeError: If the model has not been fitted.
+        """
+        self._check_is_fitted()
+        return float(np.ravel(self._model.constant_)[0]) # type: ignore

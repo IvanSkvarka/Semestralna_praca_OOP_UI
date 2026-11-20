@@ -10,11 +10,10 @@ from utils.config_manager import ConfigManager  # pylint: disable=import-error
 class EvaluationVisualizer(BaseVisualizer):
     """A plotting helper for the evaluation of the models.
 
-    Renders the comparison of the metrics, the predicted versus the true target and
-    the residuals of the test rows from the results of Evaluator. If `log_target` is enabled,
-    the target and the predictions are converted back to the original scale before plotting,
-    and the axes of the target are logarithmic so that the values spanning several orders of
-    magnitude stay readable. Figures are saved in the `evaluation` figures subdirectory.
+    Renders the comparison of the metrics and the predicted versus the true target from
+    the results of Evaluator. If `log_target` is enabled, the target and the predictions
+    are plotted on the log10 scale and the target axes are marked with a log prefix and
+    a dimensionless unit. Figures are saved in the `evaluation` figures subdirectory.
     """
     def __init__(self, config_manager: ConfigManager, name: Optional[str] = None) -> None:
         """Initializes plotting support for model evaluation results.
@@ -35,28 +34,12 @@ class EvaluationVisualizer(BaseVisualizer):
         )
 
 
-    def _original(self, values: Any) -> Any:
-        """Converts preprocessed target values back to their original scale when needed.
-
-        Applies the inverse power-of-ten transformation when log-target mode is enabled.
-        Leaves the input unchanged when targets are already represented on the original scale.
-        Supports pandas objects and NumPy arrays through their exponentiation operation.
-
-        Args:
-            values: Series, DataFrame or array of preprocessed target values.
-
-        Returns:
-            Any: Values on the original scale, or unchanged values when logging is disabled.
-        """
-        return 10.0 ** values if self._log_target else values
-
-
     def _target_label(self, target_name: str, prefix: str = "") -> str:
-        """Builds a labeled target name with an optional prefix and configured unit.
+        """Builds a labeled target name with an optional prefix and unit.
 
         Uses the shared label builder to resolve the target symbol and unit.
-        Strips leading or trailing whitespace when the prefix is empty or supplied.
-        The label represents the original target scale used by evaluation plots.
+        When log-target mode is enabled, the label is marked with a log10 prefix
+        and a dimensionless unit.
 
         Args:
             target_name: Target column name.
@@ -65,19 +48,11 @@ class EvaluationVisualizer(BaseVisualizer):
         Returns:
             str: Formatted target axis label.
         """
-        return f"{prefix} {self._build_label(target_name, include_unit=True)}".strip()
-
-
-    def run(self, *args: Any, **kwargs: Any) -> None:
-        """Provides the pipeline interface without rendering plots eagerly.
-
-        Plot generation is performed only when an explicit `plot_*` method is called.
-        This no-op allows the visualizer to follow the common pipeline component API.
-
-        Returns:
-            None: No work is performed.
-
-        """
+        if self._log_target:
+            label = f"$\\log_{{10}}$ {self._build_label(target_name)} [$-$]"
+        else:
+            label = self._build_label(target_name, include_unit=True)
+        return f"{prefix} {label}".strip()
 
 
     def _model_grid(self, n_models: int) -> Any:
@@ -100,20 +75,37 @@ class EvaluationVisualizer(BaseVisualizer):
         return fig, axes[:n_models]
 
 
+
+    def run(self, *args: Any, **kwargs: Any) -> None:
+        """Provides the pipeline interface without rendering plots eagerly.
+
+        Plot generation is performed only when an explicit `plot_*` method is called.
+        This no-op allows the visualizer to follow the common pipeline component API.
+
+        Returns:
+            None: No work is performed.
+
+        """
+
+
     def plot_metrics(self, comparison_table: pd.DataFrame) -> None:
         """Renders and saves a horizontal bar chart for each evaluation metric.
 
-        Arranges metric plots in a grid and removes unused panels.
-        Orders model bars according to the already sorted comparison table.
+        Each bar is the mean of the metric over the cross-validation folds and the error
+        bar is its standard deviation. Arranges metric plots in a grid and removes unused
+        panels. Orders model bars according to the already sorted comparison table.
         Returns without creating a figure when the table has no metrics.
 
         Args:
-            comparison_table: Table with one row per model and one column per metric.
+            comparison_table: Table of `Evaluator.comparison_table` with the `*_mean`
+                and `*_std` columns and one row per model.
 
         Returns:
             None: The charts are saved as a side effect.
         """
-        metrics: List[str] = list(comparison_table.columns)
+        metrics: List[str] = [
+            col.removesuffix("_mean") for col in comparison_table.columns if col.endswith("_mean")
+        ]
         if not metrics:
             return
 
@@ -124,7 +116,12 @@ class EvaluationVisualizer(BaseVisualizer):
             fig.suptitle("Comparison of the models")  # type: ignore
 
         for index, (axis, metric) in enumerate(zip(axes, metrics)):
-            axis.barh(comparison_table.index, comparison_table[metric].to_numpy())
+            axis.barh(
+                comparison_table.index,
+                comparison_table[f"{metric}_mean"].to_numpy(),
+                xerr=comparison_table[f"{metric}_std"].to_numpy(),
+                capsize=3,
+            )
             axis.invert_yaxis()
             axis.set_xlabel(metric.replace("_", " "))
             if index % GRID_COLUMNS:
@@ -139,7 +136,7 @@ class EvaluationVisualizer(BaseVisualizer):
     def plot_predictions(self, y_true: pd.Series, predictions: pd.DataFrame) -> None:
         """Renders and saves predicted-versus-true scatter plots for each model.
 
-        Converts targets and predictions to the original scale when log-target mode is active.
+        Plots the preprocessed values, i.e. the log10 scale when log-target mode is active.
         Uses a shared axis range and a dashed identity line to indicate perfect predictions.
         Returns without creating a figure when no predictions are supplied.
 
@@ -157,19 +154,14 @@ class EvaluationVisualizer(BaseVisualizer):
         if not self._exportable:
             fig.suptitle("Predicted versus true target")  # type: ignore
 
-        true = self._original(y_true.to_numpy(dtype=float))
-        predicted_all = self._original(predictions.to_numpy(dtype=float))
+        true = y_true.to_numpy(dtype=float)
+        predicted_all = predictions.to_numpy(dtype=float)
         low = min(true.min(), predicted_all.min())
         high = max(true.max(), predicted_all.max())
-        scale = "log" if self._log_target else "linear"
 
         for axis, model in zip(axes, predictions.columns):
-            axis.scatter(
-                true, self._original(predictions[model].to_numpy(dtype=float)), s=6, alpha=0.5
-            )
+            axis.scatter(true, predictions[model].to_numpy(dtype=float), s=6, alpha=0.5)
             axis.plot([low, high], [low, high], linestyle="--", color="black", linewidth=1)
-            axis.set_xscale(scale)
-            axis.set_yscale(scale)
             axis.set_xlim(low, high)
             axis.set_ylim(low, high)
             axis.set_title(model)

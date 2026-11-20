@@ -1,0 +1,28 @@
+site_name: Dokumentácia semestrálnej práce
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+
+nav:
+  - Úvod: index.md
+  - API Referencia:
+      - Hlavný skript a jadro: api/core.md
+      - Spracovanie dát (Data Handling): api/data_handling.md
+      - Modely (Models): api/models.md
+      - Vyhodnotenie (Evaluation): api/evaluation.md
+      - Vizualizácia (Visualization): api/visualization.md
+      - Nástroje (Utils): api/utils.md

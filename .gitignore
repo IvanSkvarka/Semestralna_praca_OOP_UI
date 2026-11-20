@@ -1,6 +1,5 @@
 __pycache__/
 .helpers/
-*.txt
-
-# ingnored, because not implemetned yet
 tests/
+
+pytest.ini

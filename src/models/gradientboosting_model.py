@@ -19,6 +19,8 @@ class GradientBoostingModel(BaseModel):
         n_estimators: Optional[int] = None,
         learning_rate: Optional[float] = None,
         max_depth: Optional[int] = None,
+        min_samples_leaf: Optional[int] = None,
+        subsample: Optional[float] = None,
         random_state: Optional[int] = None,
     ) -> None:
         """Initializes gradient boosting parameters from arguments or configuration.
@@ -31,6 +33,8 @@ class GradientBoostingModel(BaseModel):
             n_estimators: Number of boosting stages, or `None` to use configuration.
             learning_rate: Shrinkage applied to each boosting stage, or `None` for config.
             max_depth: Maximum depth of individual regression trees, or `None` for config.
+            min_samples_leaf: Minimum number of rows in a leaf, or `None` for config.
+            subsample: Fraction of rows used to fit each stage, or `None` for config.
             random_state: Seed for reproducible fitting, or `None` for config.
 
         Returns:
@@ -48,6 +52,12 @@ class GradientBoostingModel(BaseModel):
         )
         self.max_depth = max_depth if max_depth is not None else self._params.get(
             "max_depth", 3
+        )
+        self.min_samples_leaf = min_samples_leaf if min_samples_leaf is not None else self._params.get(
+            "min_samples_leaf", 1
+        )
+        self.subsample = subsample if subsample is not None else self._params.get(
+            "subsample", 1.0
         )
         self.random_state = random_state if random_state is not None else self._params.get(
             "random_state", 42
@@ -68,13 +78,15 @@ class GradientBoostingModel(BaseModel):
         Returns:
             GradientBoostingModel: This fitted model instance.
         """
-        self.model_ = GradientBoostingRegressor(
+        self._model = GradientBoostingRegressor(
             n_estimators=self.n_estimators,
             learning_rate=self.learning_rate,
             max_depth=self.max_depth,
+            min_samples_leaf=self.min_samples_leaf,
+            subsample=self.subsample,
             random_state=self.random_state,
         )
-        self.model_.fit(X_train, y_train) # type: ignore
+        self._model.fit(X_train, y_train) # type: ignore
         return self
 
 
@@ -94,4 +106,21 @@ class GradientBoostingModel(BaseModel):
             RuntimeError: If the model has not been fitted.
         """
         self._check_is_fitted()
-        return self.model_.predict(X_test)
+        return self._model.predict(X_test)
+
+
+    @property
+    def feature_importances(self) -> Dict[str, float]:
+        """Returns the importance of each feature, sorted from the most important.
+
+        Raises:
+            RuntimeError: If the model has not been fitted.
+        """
+        self._check_is_fitted()
+        importances = {
+            str(feature): float(importance)
+            for feature, importance in zip(
+                self._model.feature_names_in_, self._model.feature_importances_ # type: ignore
+            )
+        }
+        return dict(sorted(importances.items(), key=lambda item: item[1], reverse=True))

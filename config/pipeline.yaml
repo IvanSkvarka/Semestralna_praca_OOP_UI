@@ -1,10 +1,10 @@
 random_state: 42
 
 eda:
-  correlation_method: "pearson"       # moznosti: "pearson", "spearman"
-  correlation_threshold: 0.85         # prah pre upozornenie na multikolinearitu
-  iqr_multiplier: 1.5                 # koeficient pre detekciu outlierov (1.5 * IQR)
-  save_reports: false                  # ulozit tabulky so statistikami do report/
+  correlation_method: "pearson"
+  correlation_threshold: 0.85
+  iqr_multiplier: 1.5
+  save_reports: false
   generate_plots: false
 
 preprocessing:
@@ -18,15 +18,16 @@ preprocessing:
   generate_plots: false
 
 evaluation:
+  n_splits: 5
   save_reports: true
   generate_plots: true
 
 tuning:
   n_splits: 3
   scoring: neg_root_mean_squared_error
-  n_jobs: 1
+  n_jobs: 4
   param_grids:
     GradientBoostingModel:
-      n_estimators: [50, 100, 200, 300, 400, 500]
+      n_estimators: [200, 300]
       learning_rate: [0.01, 0.05, 0.1]
-      max_depth: [2, 3, 4]
+      max_depth: [2, 3]

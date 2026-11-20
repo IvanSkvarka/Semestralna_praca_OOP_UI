@@ -1,3 +1,4 @@
+from typing import Dict
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
@@ -41,8 +42,8 @@ class LogLogLinearModel(BaseModel):
         Returns:
             LogLogLinearModel: This fitted model instance.
         """
-        self.model_ = LinearRegression()
-        self.model_.fit(X_train, y_train)
+        self._model = LinearRegression()
+        self._model.fit(X_train, y_train)
         return self
 
 
@@ -62,4 +63,29 @@ class LogLogLinearModel(BaseModel):
             RuntimeError: If the model has not been fitted.
         """
         self._check_is_fitted()
-        return self.model_.predict(X_test)
+        return self._model.predict(X_test)
+
+
+    @property
+    def coefficients(self) -> Dict[str, float]:
+        """Returns the fitted regression coefficient of each feature.
+
+        Raises:
+            RuntimeError: If the model has not been fitted.
+        """
+        self._check_is_fitted()
+        return {
+            str(feature): float(coef)
+            for feature, coef in zip(self._model.feature_names_in_, np.ravel(self._model.coef_)) # type: ignore
+        }
+
+
+    @property
+    def intercept(self) -> float:
+        """Returns the fitted intercept of the regression.
+
+        Raises:
+            RuntimeError: If the model has not been fitted.
+        """
+        self._check_is_fitted()
+        return float(np.ravel(self._model.intercept_)[0]) # type: ignore

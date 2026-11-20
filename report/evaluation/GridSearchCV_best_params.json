@@ -1,5 +1,29 @@
 {
-    "learning_rate": 0.05,
-    "max_depth": 3,
-    "n_estimators": 500
+    "GradientBoostingModel": [
+        {
+            "learning_rate": 0.05,
+            "max_depth": 2,
+            "n_estimators": 300
+        },
+        {
+            "learning_rate": 0.1,
+            "max_depth": 2,
+            "n_estimators": 200
+        },
+        {
+            "learning_rate": 0.1,
+            "max_depth": 2,
+            "n_estimators": 300
+        },
+        {
+            "learning_rate": 0.05,
+            "max_depth": 2,
+            "n_estimators": 300
+        },
+        {
+            "learning_rate": 0.1,
+            "max_depth": 2,
+            "n_estimators": 300
+        }
+    ]
 }

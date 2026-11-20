@@ -1,4 +1,4 @@
-from typing import Optional, Any, Union
+from typing import Optional, Any
 from abc import ABC, abstractmethod
 import pandas as pd
 import numpy as np
@@ -31,7 +31,7 @@ class BaseModel(BaseEstimator, RegressorMixin, BasePipelineComponent, ABC):
             None: The model is initialized but not fitted.
         """
         super().__init__(config_manager)
-        self.model_ = None
+        self._model: Optional[Any] = None
 
 
 
@@ -45,13 +45,13 @@ class BaseModel(BaseEstimator, RegressorMixin, BasePipelineComponent, ABC):
     def _check_is_fitted(self) -> None:
         """Verifies that fitting created the estimator state required for prediction.
 
-        Checks for the fitted `model_` attribute used by concrete implementations.
+        Checks that the private `_model` estimator has been created by `fit()`.
         Raises a runtime error when the model has not yet been fitted.
 
         Raises:
             RuntimeError: If no fitted estimator is available.
         """
-        if not hasattr(self, "model_"):
+        if self._model is None:
             raise RuntimeError(ERR_MSG)
 
 
@@ -63,7 +63,7 @@ class BaseModel(BaseEstimator, RegressorMixin, BasePipelineComponent, ABC):
         Subclasses define the estimator and its fitting procedure.
 
         Args:
-            X_train: Training feature matrix.
+            x_train: Training feature matrix.
             y_train: Training target values.
 
         Returns:
@@ -78,7 +78,7 @@ class BaseModel(BaseEstimator, RegressorMixin, BasePipelineComponent, ABC):
         Subclasses implement prediction using their fitted estimator.
 
         Args:
-            X_test: Feature matrix to predict.
+            x_test: Feature matrix to predict.
 
         Returns:
             np.ndarray: Predicted target values.
@@ -88,9 +88,9 @@ class BaseModel(BaseEstimator, RegressorMixin, BasePipelineComponent, ABC):
 
     def run(
         self,
-        X_train: pd.DataFrame,
+        x_train: pd.DataFrame,
         y_train: pd.Series,
-        X_test: Optional[pd.DataFrame] = None,
+        x_test: Optional[pd.DataFrame] = None,
         *args: Any,
         **kwargs: Any
     ) -> Optional[np.ndarray]:
@@ -101,16 +101,16 @@ class BaseModel(BaseEstimator, RegressorMixin, BasePipelineComponent, ABC):
         Returns `None` when the caller requests fitting without prediction.
 
         Args:
-            X_train: Training feature matrix.
+            x_train: Training feature matrix.
             y_train: Training target values.
-            X_test: Optional feature matrix for prediction after fitting.
+            x_test: Optional feature matrix for prediction after fitting.
 
         Returns:
             Optional[np.ndarray]: Predictions, or `None` when `X_test` is omitted.
         """
-        self.fit(X_train, y_train)
+        self.fit(x_train, y_train)
 
-        if X_test is not None:
-            return self.predict(X_test)
+        if x_test is not None:
+            return self.predict(x_test)
 
         return None

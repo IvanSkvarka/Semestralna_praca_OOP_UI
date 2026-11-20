@@ -1,23 +1,53 @@
 {
     "LogLogLinearModel":{
-        "r2_log10":0.9930750498,
-        "rmse_log10":0.0617631577,
-        "mae_log10":0.0410747658,
-        "rmse_orig":0.0327106252,
-        "mae_orig":0.0123199492
+        "r2_log10":0.993516233,
+        "rmse_log10":0.0640299656,
+        "mae_log10":0.0416532719,
+        "rmse_orig":0.0222406304,
+        "mae_orig":0.0087472432,
+        "r2_log10_mean":0.9934986361,
+        "r2_log10_std":0.0024234775,
+        "rmse_log10_mean":0.0629856934,
+        "rmse_log10_std":0.011347466,
+        "mae_log10_mean":0.0416316661,
+        "mae_log10_std":0.0016765031,
+        "rmse_orig_mean":0.0219873342,
+        "rmse_orig_std":0.0032421559,
+        "mae_orig_mean":0.0087320504,
+        "mae_orig_std":0.0010386936
     },
     "GradientBoostingModel":{
-        "r2_log10":0.8869176039,
-        "rmse_log10":0.2495851055,
-        "mae_log10":0.1956352922,
-        "rmse_orig":0.0585220371,
-        "mae_orig":0.0374242848
+        "r2_log10":0.9273664796,
+        "rmse_log10":0.2143078684,
+        "mae_log10":0.176865995,
+        "rmse_orig":0.0493541642,
+        "mae_orig":0.0268782858,
+        "r2_log10_mean":0.9271205057,
+        "r2_log10_std":0.0293417323,
+        "rmse_log10_mean":0.2101877558,
+        "rmse_log10_std":0.0421746144,
+        "mae_log10_mean":0.1761875044,
+        "mae_log10_std":0.0388953897,
+        "rmse_orig_mean":0.0483188625,
+        "rmse_orig_std":0.0105456269,
+        "mae_orig_mean":0.0267600968,
+        "mae_orig_std":0.0078643189
     },
     "MeanBaselineModel":{
-        "r2_log10":-0.109171637,
-        "rmse_log10":0.7816647746,
-        "mae_log10":0.6794502803,
-        "rmse_orig":0.1612798699,
-        "mae_orig":0.0958098673
+        "r2_log10":-0.0064460383,
+        "rmse_log10":0.7977463339,
+        "mae_log10":0.6636095876,
+        "rmse_orig":0.1386750251,
+        "mae_orig":0.0751537561,
+        "r2_log10_mean":-0.0184403581,
+        "r2_log10_std":0.0127644923,
+        "rmse_log10_mean":0.7976436254,
+        "rmse_log10_std":0.0110317594,
+        "mae_log10_mean":0.6634052314,
+        "mae_log10_std":0.0119036469,
+        "rmse_orig_mean":0.1376811199,
+        "rmse_orig_std":0.0162266377,
+        "mae_orig_mean":0.0749945914,
+        "mae_orig_std":0.0123883419
     }
 }

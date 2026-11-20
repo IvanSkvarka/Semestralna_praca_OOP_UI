@@ -1,3 +1,4 @@
-__all__ = ["evaluator"]
+__all__ = ["evaluator", "tuner"]
 
 from . import evaluator
+from . import tuner
