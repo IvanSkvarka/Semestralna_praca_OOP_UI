@@ -2,7 +2,7 @@ from typing import Any, List, Union
 import warnings
 import yaml
 
-from .base_config_manager import BaseConfigManager
+from utils.base_config_manager import BaseConfigManager
 
 
 

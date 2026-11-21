@@ -11,7 +11,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: [src]
+          paths: [src, tests]
           options:
             docstring_style: google
             show_source: true
@@ -20,9 +20,10 @@ plugins:
 nav:
   - Úvod: index.md
   - API Referencia:
-      - Hlavný skript a jadro: api/core.md
+      - Hlavný skript a základ: api/core.md
       - Spracovanie dát (Data Handling): api/data_handling.md
       - Modely (Models): api/models.md
       - Vyhodnotenie (Evaluation): api/evaluation.md
       - Vizualizácia (Visualization): api/visualization.md
       - Nástroje (Utils): api/utils.md
+      - Testy (Tests): api/tests.md

@@ -2,6 +2,8 @@ from typing import Any, Dict, List, Union
 from pathlib import Path
 from abc import ABC, abstractmethod
 
+_MISSING = object()
+
 
 
 class BaseConfigManager(ABC):
@@ -99,7 +101,7 @@ class BaseConfigManager(ABC):
         Returns:
             bool: True if the key exists, False otherwise.
         """
-        return self.get_param(key, object()) is not object()
+        return self.get_param(key, _MISSING) is not _MISSING
 
 
     def __repr__(self) -> str:
