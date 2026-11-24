@@ -14,7 +14,7 @@ from sklearn.model_selection import GridSearchCV
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 # pylint: disable=wrong-import-position
-from evaluation.evaluator import Evaluator
+from evaluation.evaluator import Evaluator, Metrics
 from evaluation.tuner import HyperparameterTuner
 from models.gradientboosting_model import GradientBoostingModel
 from models.logloglinear_model import LogLogLinearModel
@@ -45,13 +45,32 @@ def test_tuner_rejects_invalid_grids():
     cfg._config["pipeline"]["tuning"]["param_grids"] = {  # pylint: disable=protected-access
         "GradientBoostingModel": {"not_a_parameter": [1]}
     }
-    raises(ValueError, HyperparameterTuner(cfg), [GradientBoostingModel(cfg)], match="not_a_parameter")
+    raises(
+        ValueError, HyperparameterTuner(cfg), [GradientBoostingModel(cfg)],
+        match="GradientBoostingModel are not parameters",
+    )
 
     cfg._config["pipeline"]["tuning"]["param_grids"] = {  # pylint: disable=protected-access
         "UnknownModel": {"a": [1]}
     }
     raises(ValueError, HyperparameterTuner(cfg), [GradientBoostingModel(cfg)], match="UnknownModel")
 
+# ----- Metrics -----
+def test_metrics_instances_are_independent():
+    """Test that each Metrics object keeps its own metric set.
+
+    The test creates metrics for the log10 target and for the plain target and
+    verifies that the second one does not change the first, which would happen
+    if the instances were shared.
+    """
+    logged, plain = Metrics(log_target=True), Metrics(log_target=False)
+    assert logged is not plain
+    assert logged.main_metric == "r2_log10"
+    assert plain.main_metric == "r2"
+    assert "rmse_orig" in logged.funcs and "rmse_orig" not in plain.funcs
+
+
+# ----- Evaluator -----
 def test_evaluator_results_raise_before_run():
     """Test evaluator result properties before execution.
 

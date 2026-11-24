@@ -76,18 +76,6 @@ class EvaluationVisualizer(BaseVisualizer):
 
 
 
-    def run(self, *args: Any, **kwargs: Any) -> None:
-        """Provides the pipeline interface without rendering plots eagerly.
-
-        Plot generation is performed only when an explicit `plot_*` method is called.
-        This no-op allows the visualizer to follow the common pipeline component API.
-
-        Returns:
-            None: No work is performed.
-
-        """
-
-
     def plot_metrics(self, comparison_table: pd.DataFrame) -> None:
         """Renders and saves a horizontal bar chart for each evaluation metric.
 

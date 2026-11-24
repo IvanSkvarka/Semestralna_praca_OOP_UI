@@ -17,11 +17,12 @@ GRID_COLUMNS = 2
 
 
 class BaseVisualizer(BasePipelineComponent):
-    """An abstract base class for components that render figures.
+    """A base class for components that render figures.
 
     Reads the figure settings from the `visualization` configuration, prepares the
     matplotlib style and provides helpers for figure creation, axis labels,
-    multi-panel grids and saving. Subclasses add the concrete plots.
+    multi-panel grids and saving, and the shared histogram plot. Subclasses add the
+    concrete plots. Plots are rendered by explicit `plot_*` calls, never by `run()`.
     """
     def __init__(
         self,
@@ -198,3 +199,34 @@ class BaseVisualizer(BasePipelineComponent):
             fig.delaxes(axis)
 
         self._finalize_plot(fig, f"{group_name}_{file_suffix}")
+
+
+    def run(self, *args: Any, **kwargs: Any) -> None:
+        """Provides the pipeline interface without rendering plots eagerly.
+
+        Plot generation is performed only when an explicit `plot_*` method is called.
+        This no-op allows every visualizer to follow the common pipeline component API.
+
+        Returns:
+            None: No work is performed.
+        """
+
+
+    def plot_distributions(self, df_subset: pd.DataFrame, group_name: str) -> None:
+        """Plots and saves a histogram with a KDE curve for each supplied column.
+
+        Uses the shared grid renderer to label, arrange and save the panels, and seaborn
+        to draw the distribution and a smooth density estimate of each column.
+        Empty column subsets are ignored by the grid helper.
+
+        Args:
+            df_subset: The columns to plot.
+            group_name: Column group name, e.g. ``"target_columns"``.
+
+        Returns:
+            None: The figure is saved as a side effect.
+        """
+        def _draw_hist(series: pd.Series, axis: Any) -> None:
+            sns.histplot(series, kde=True, ax=axis) # type: ignore
+
+        self._plot_grid(df_subset, group_name, _draw_hist, "Histogram plot", "histplot")

@@ -22,16 +22,6 @@ class Metrics:
     If the target is on the log10 scale, the metrics are reported on the log10 scale
     and on the original scale (`*_orig`). Otherwise only the plain metrics are used.
     """
-    __instance = None
-
-
-    def __new__(cls, log_target: bool = True) -> "Metrics":
-        """Singleton implementation"""
-        if cls.__instance is None:
-            cls.__instance = object.__new__(cls)
-        return cls.__instance
-
-
     def __init__(self, log_target: bool = True) -> None:
         """Configures regression metrics for the target scale used by the pipeline.
 

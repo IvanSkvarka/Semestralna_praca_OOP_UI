@@ -29,32 +29,32 @@ class LogLogLinearModel(BaseModel):
 
 
 
-    def fit(self, X_train: pd.DataFrame, y_train: pd.Series) -> "LogLogLinearModel":
+    def fit(self, x_train: pd.DataFrame, y_train: pd.Series) -> "LogLogLinearModel":
         """Fits a linear regression estimator to the training data.
 
         Creates a new least-squares estimator and trains it on the supplied arrays.
         Stores the fitted estimator for later prediction.
 
         Args:
-            X_train: Training feature matrix.
+            x_train: Training feature matrix.
             y_train: Training target values.
 
         Returns:
             LogLogLinearModel: This fitted model instance.
         """
         self._model = LinearRegression()
-        self._model.fit(X_train, y_train)
+        self._model.fit(x_train, y_train)
         return self
 
 
-    def predict(self, X_test: pd.DataFrame) -> np.ndarray:
+    def predict(self, x_test: pd.DataFrame) -> np.ndarray:
         """Predicts target values with the fitted linear regression estimator.
 
         Verifies that the model has been fitted before delegating prediction.
         Produces one numeric prediction for each row in the test matrix.
 
         Args:
-            X_test: Feature matrix to predict.
+            x_test: Feature matrix to predict.
 
         Returns:
             np.ndarray: Predicted target values.
@@ -63,7 +63,7 @@ class LogLogLinearModel(BaseModel):
             RuntimeError: If the model has not been fitted.
         """
         self._check_is_fitted()
-        return self._model.predict(X_test)
+        return self._model.predict(x_test)
 
 
     @property

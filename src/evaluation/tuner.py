@@ -54,7 +54,7 @@ class HyperparameterTuner(BasePipelineComponent):
         unknown = [param for param in grid if param not in model.get_params(deep=False)] # type: ignore
         if unknown:
             raise ValueError(
-                f"Parameters {unknown} of the grid for {model.name}"
+                f"Parameters {unknown} of the grid for {model.name} "
                 "are not parameters of the model."
             )
         empty = [param for param, values in grid.items() if not values]

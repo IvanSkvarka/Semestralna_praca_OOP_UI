@@ -28,32 +28,32 @@ class MeanBaselineModel(BaseModel):
 
 
 
-    def fit(self, X_train: pd.DataFrame, y_train: pd.Series) -> "MeanBaselineModel":
+    def fit(self, x_train: pd.DataFrame, y_train: pd.Series) -> "MeanBaselineModel":
         """Fits a dummy regressor that predicts the training-target mean.
 
         Creates a fresh scikit-learn estimator for each fit operation.
         Stores the fitted estimator on the model and returns this model.
 
         Args:
-            X_train: Training feature matrix.
+            x_train: Training feature matrix.
             y_train: Training target values.
 
         Returns:
             MeanBaselineModel: This fitted model instance.
         """
         self._model = DummyRegressor()
-        self._model.fit(X_train, y_train)
+        self._model.fit(x_train, y_train)
         return self
 
 
-    def predict(self, X_test: pd.DataFrame) -> np.ndarray:
+    def predict(self, x_test: pd.DataFrame) -> np.ndarray:
         """Predicts the training-target mean for each test row.
 
         Checks that fitting has completed before delegating prediction.
         The output contains one prediction for every row in the test matrix.
 
         Args:
-            X_test: Feature matrix to predict.
+            x_test: Feature matrix to predict.
 
         Returns:
             np.ndarray: Mean target predictions.
@@ -62,7 +62,7 @@ class MeanBaselineModel(BaseModel):
             RuntimeError: If the model has not been fitted.
         """
         self._check_is_fitted()
-        return self._model.predict(X_test) # type: ignore
+        return self._model.predict(x_test) # type: ignore
 
 
     @property

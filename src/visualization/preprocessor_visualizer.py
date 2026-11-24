@@ -1,6 +1,5 @@
-from typing import Optional, Any, Set, List
+from typing import Optional, Set, List
 import pandas as pd
-import seaborn as sns
 
 from visualization.base_visualizer import BaseVisualizer # pylint: disable=import-error
 from utils.config_manager import ConfigManager  # pylint: disable=import-error
@@ -10,7 +9,7 @@ from utils.config_manager import ConfigManager  # pylint: disable=import-error
 class PreprocessorVisualizer(BaseVisualizer):
     """A plotting helper for the preprocessed data.
 
-    Renders distributions of the preprocessed columns. The axis labels of the columns
+    Renders distributions (inherited) of the preprocessed columns and the group sizes. The axis labels of the columns
     transformed by log10 (`pipeline.preprocessing.log_features` and, if `log_target`
     is enabled, the target) are marked with a log prefix and a dimensionless unit.
     Figures are saved in the `preprocessing` figures subdirectory.
@@ -60,49 +59,6 @@ class PreprocessorVisualizer(BaseVisualizer):
         symbol = super()._build_label(col)
         label = f"$\\log_{{10}}$ {symbol}"
         return f"{label} [$-$]" if include_unit else label
-
-
-    def run(self, *args: Any, **kwargs: Any) -> None:
-        """Provides the pipeline interface without rendering plots eagerly.
-
-        Plot generation is performed only when an explicit `plot_*` method is called.
-        This no-op allows the visualizer to follow the common pipeline component API.
-
-        Returns:
-            None: No work is performed.
-        """
-        
-
-    def plot_distributions(self, df_subset: pd.DataFrame, group_name: str) -> None:
-        """Plots and saves a histogram with a KDE curve for each supplied column.
-
-        Uses the shared grid renderer to label, arrange and save the panels.
-        Empty column subsets are ignored by the grid helper.
-        Log-transformed columns receive dimensionless labels.
-
-        Args:
-            df_subset: The columns to plot.
-            group_name: Column group name, e.g. ``"target"``.
-
-        Returns:
-            None: The figure is saved as a side effect.
-        """
-        def _draw_hist(series: pd.Series, axis: Any) -> None:
-            """Draws a histogram and KDE curve for one data column.
-
-            Uses seaborn to render the distribution and a smooth density estimate.
-            The caller supplies the axes so the plot can be embedded in a figure grid.
-
-            Args:
-                series: Column values to visualize.
-                axis: Matplotlib axes that receives the plot.
-
-            Returns:
-                None: The histogram is drawn as a side effect.
-            """
-            sns.histplot(series, kde=True, ax=axis) # type: ignore
-
-        self._plot_grid(df_subset, group_name, _draw_hist, "Histogram plot", "histplot")
 
 
     def plot_group_sizes(self, groups: pd.Series) -> None:

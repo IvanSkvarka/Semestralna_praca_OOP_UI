@@ -13,6 +13,16 @@ class GradientBoostingModel(BaseModel):
     Initializes estimator parameters from explicit arguments when supplied.
     Missing arguments are filled from pipeline configuration and then defaults.
     """
+    _DEFAULTS: Dict[str, Any] = {
+        "n_estimators": 100,
+        "learning_rate": 0.1,
+        "max_depth": 3,
+        "min_samples_leaf": 1,
+        "subsample": 1.0,
+        "random_state": 42,
+    }
+
+
     def __init__(
         self,
         config_manager: ConfigManager,
@@ -41,63 +51,52 @@ class GradientBoostingModel(BaseModel):
             None: The model is initialized but not fitted.
         """
         super().__init__(config_manager)
-        self._params: Dict[str, Any] = self.config_manager.get_param(
+        configured: Dict[str, Any] = self.config_manager.get_param(
             "pipeline.models.gradient_boosting"
         ) or {}
-        self.n_estimators = n_estimators if n_estimators is not None else self._params.get(
-            "n_estimators", 100
-        )
-        self.learning_rate = learning_rate if learning_rate is not None else self._params.get(
-            "learning_rate", 0.1
-        )
-        self.max_depth = max_depth if max_depth is not None else self._params.get(
-            "max_depth", 3
-        )
-        self.min_samples_leaf = min_samples_leaf if min_samples_leaf is not None else self._params.get(
-            "min_samples_leaf", 1
-        )
-        self.subsample = subsample if subsample is not None else self._params.get(
-            "subsample", 1.0
-        )
-        self.random_state = random_state if random_state is not None else self._params.get(
-            "random_state", 42
-        )
+        arguments = {
+            "n_estimators": n_estimators,
+            "learning_rate": learning_rate,
+            "max_depth": max_depth,
+            "min_samples_leaf": min_samples_leaf,
+            "subsample": subsample,
+            "random_state": random_state,
+        }
+
+        for param, default in self._DEFAULTS.items():
+            value = arguments[param]
+            setattr(self, param, value if value is not None else configured.get(param, default))
 
 
 
-    def fit(self, X_train: pd.DataFrame, y_train: pd.Series) -> "GradientBoostingModel":
+    def fit(self, x_train: pd.DataFrame, y_train: pd.Series) -> "GradientBoostingModel":
         """Trains a gradient boosting regressor on the supplied training data.
 
         Creates the estimator using the parameters resolved at initialization.
         Fits it to the training features and targets and stores the fitted estimator.
 
         Args:
-            X_train: Training feature matrix.
+            x_train: Training feature matrix.
             y_train: Training target values.
 
         Returns:
             GradientBoostingModel: This fitted model instance.
         """
         self._model = GradientBoostingRegressor(
-            n_estimators=self.n_estimators,
-            learning_rate=self.learning_rate,
-            max_depth=self.max_depth,
-            min_samples_leaf=self.min_samples_leaf,
-            subsample=self.subsample,
-            random_state=self.random_state,
+            **{param: getattr(self, param) for param in self._DEFAULTS}
         )
-        self._model.fit(X_train, y_train) # type: ignore
+        self._model.fit(x_train, y_train) # type: ignore
         return self
 
 
-    def predict(self, X_test: pd.DataFrame) -> np.ndarray:
+    def predict(self, x_test: pd.DataFrame) -> np.ndarray:
         """Predicts target values using the fitted gradient boosting estimator.
 
         Checks the fitted state before passing the feature matrix to the estimator.
         Returns one prediction for each test row.
 
         Args:
-            X_test: Feature matrix to predict.
+            x_test: Feature matrix to predict.
 
         Returns:
             np.ndarray: Predicted target values.
@@ -106,7 +105,7 @@ class GradientBoostingModel(BaseModel):
             RuntimeError: If the model has not been fitted.
         """
         self._check_is_fitted()
-        return self._model.predict(X_test)
+        return self._model.predict(x_test)
 
 
     @property

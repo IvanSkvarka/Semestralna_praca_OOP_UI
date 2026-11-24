@@ -10,7 +10,7 @@ from visualization.base_visualizer import BaseVisualizer # pylint: disable=impor
 class EDAVisualizer(BaseVisualizer):
     """A plotting helper for the exploratory data analysis.
 
-    Renders distributions, boxplots and the correlation matrix from data
+    Renders boxplots and the correlation matrix (distributions are inherited) from data
     prepared by EDAnalyzer. Figures are saved in the `eda` figures subdirectory.
     """
     def __init__(self, config_manager: ConfigManager, name: Optional[str] = None) -> None:
@@ -28,49 +28,6 @@ class EDAVisualizer(BaseVisualizer):
         """
         super().__init__(config_manager, name, subfolder="eda")
 
-
-
-    def run(self, *args: Any, **kwargs: Any) -> None:
-        """Provides the pipeline interface without rendering plots eagerly.
-
-        Plot generation is performed only when an explicit `plot_*` method is called.
-        This no-op allows the visualizer to follow the common pipeline component API.
-
-        Returns:
-            None: No work is performed.
-        """
-
-
-    def plot_distributions(self, df_subset: pd.DataFrame, group_name: str) -> None:
-        """Plots and saves a histogram with a KDE curve for each supplied column.
-
-        Defines a per-column drawing callback and delegates grid layout and file output.
-        Empty column subsets are ignored by the shared grid helper.
-        The requested group name is used to identify the resulting figure.
-
-        Args:
-            df_subset: The columns to plot.
-            group_name: Column group name, e.g. ``"target_columns"``.
-
-        Returns:
-            None: The figure is saved as a side effect.
-        """
-        def _draw_hist(series: pd.Series, axis: Any) -> None:
-            """Draws one column's histogram and KDE curve on the supplied axes.
-
-            Uses seaborn to render the distribution and a smooth density estimate.
-            The caller supplies the axes so the plot can be embedded in a figure grid.
-
-            Args:
-                series: Column values to visualize.
-                axis: Matplotlib axes that receives the plot.
-
-            Returns:
-                None: The histogram is drawn as a side effect.
-            """
-            sns.histplot(series, kde=True, ax=axis) # type: ignore
-
-        self._plot_grid(df_subset, group_name, _draw_hist, "Histogram plot", "histplot")
 
 
     def plot_boxplots(self, df_subset: pd.DataFrame, group_name: str) -> None:

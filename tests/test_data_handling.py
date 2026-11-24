@@ -82,6 +82,25 @@ def test_eda_analyzer_reports():
     assert correlations.shape[0] == correlations.shape[1]
     assert analyzer.quality_report is report
 
+def test_eda_analyzer_plots_features_when_they_are_not_configured():
+    """Test EDA plots when `data.feature_columns` is empty.
+
+    The test leaves the feature columns unconfigured, as DataLoader allows, enables
+    plotting and verifies that the feature distributions are still rendered.
+    """
+    cfg = make_config()
+    cfg._config["data"]["feature_columns"] = []  # pylint: disable=protected-access
+    cfg._config["pipeline"]["eda"]["generate_plots"] = True  # pylint: disable=protected-access
+    cfg._config["visualization"] = {  # pylint: disable=protected-access
+        "exportable": False, "show_plots": False, "dpi": 50, "width_pt": 400,
+    }
+    EDAnalyzer(cfg)(make_raw_df())
+
+    figures = Path(cfg["settings.paths.figures_dir"]) / "eda"
+    assert (figures / "feature_columns_histplot.png").is_file()
+    assert (figures / "target_columns_histplot.png").is_file()
+
+
 # ----- Preprocessor -----
 def test_preprocessor_properties_raise_before_run():
     """Test preprocessor output properties before execution.

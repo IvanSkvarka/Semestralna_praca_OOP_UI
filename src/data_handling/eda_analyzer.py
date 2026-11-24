@@ -210,8 +210,9 @@ class EDAnalyzer(BasePipelineComponent):
             return
 
         constant = set(constant_cols)
+        feature_cols = self._feature_cols or [c for c in df.columns if c not in self._target_cols]
         targets = df[[c for c in self._target_cols if c not in constant]]
-        features = df[[c for c in self._feature_cols if c not in constant]]
+        features = df[[c for c in feature_cols if c not in constant]]
 
         self._visualizer.plot_distributions(targets, "target_columns")
         self._visualizer.plot_distributions(features, "feature_columns")
