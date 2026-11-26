@@ -1,4 +1,4 @@
-# Hlavný skript a základ
+# Main and Base
 
 ::: base
 ::: main

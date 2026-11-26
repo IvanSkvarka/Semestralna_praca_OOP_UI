@@ -1,4 +1,4 @@
-# Modely
+# Models
 
 ::: models.base_model
 ::: models.gradientboosting_model

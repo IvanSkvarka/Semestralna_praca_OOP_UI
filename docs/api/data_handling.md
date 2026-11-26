@@ -1,4 +1,4 @@
-# Spracovanie dát a EDA
+# Data handling and EDA
 
 ::: data_handling.data_loader
 ::: data_handling.eda_analyzer

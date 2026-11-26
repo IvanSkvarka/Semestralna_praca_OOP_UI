@@ -1,3 +1,9 @@
+"""
+The module implements the basic interface of configuration managers for reading 
+and working with YAML files.
+Author: Ivan Skvarka
+"""
+
 from typing import Any, List, Union
 import warnings
 import yaml

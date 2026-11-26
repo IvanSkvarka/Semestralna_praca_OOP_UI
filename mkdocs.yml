@@ -1,4 +1,4 @@
-site_name: Dokumentácia semestrálnej práce
+site_name: Term Project Documentation
 theme:
   name: material
   features:
@@ -18,12 +18,12 @@ plugins:
             show_root_heading: true
 
 nav:
-  - Úvod: index.md
-  - API Referencia:
-      - Hlavný skript a základ: api/core.md
-      - Spracovanie dát (Data Handling): api/data_handling.md
-      - Modely (Models): api/models.md
-      - Vyhodnotenie (Evaluation): api/evaluation.md
-      - Vizualizácia (Visualization): api/visualization.md
-      - Nástroje (Utils): api/utils.md
-      - Testy (Tests): api/tests.md
+  - Introduction: index.md
+  - API Reference:
+      - Main and Base: api/core.md
+      - Data Handling: api/data_handling.md
+      - Models: api/models.md
+      - Evaluation: api/evaluation.md
+      - Visualization: api/visualization.md
+      - Utils: api/utils.md
+      - Tests: tests.md

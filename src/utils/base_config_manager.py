@@ -1,8 +1,13 @@
+"""
+The module contains a basic interface for the following configuration manager implementations.
+Author: Ivan Skvarka
+"""
+
 from typing import Any, Dict, List, Union
 from pathlib import Path
 from abc import ABC, abstractmethod
 
-_MISSING = object()
+_MISSING = object() # jedinecny sentinel v pamati, kvoli getitem, ktory vracia aj None
 
 
 

@@ -1,10 +1,16 @@
+"""
+A module that uses the base class for the pipeline and implements data 
+loading from the directory configured in .settings.yaml.
+Author: Ivan Skvarka
+"""
+
 from typing import Union, List, Optional, Any
 from numbers import Integral
 from pathlib import Path
 import pandas as pd
 
-from base import BasePipelineComponent # pylint: disable=import-error
-from utils.config_manager import ConfigManager # pylint: disable=import-error
+from base import BasePipelineComponent
+from utils.config_manager import ConfigManager
 
 ERR_MSG = "The data has not been loaded yet. " \
                  "First, call the `run()` method or call the instance."
