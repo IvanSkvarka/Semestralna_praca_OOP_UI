@@ -17,7 +17,7 @@ Porovnávajú sa tri modely:
 ## Štruktúra projektu
 
 ### Strom priečinkov
-```bash
+    ```bash
     .
     ├── config
     ├── data
@@ -42,12 +42,12 @@ Porovnávajú sa tri modely:
     ├── mkdocs.yml
     ├── README.md
     └── requirements.txt
-```
+    ```
 
 ### Popis priečinkov
 
 `src/`: Adresár so zdrojovými kódmi.
-`config/`: Konfiguračný adresár.
+`config/`: Konfiguračný adresár. Viac v časti **Konfigurácia**.
 `data/`: Adresár obsahujúci dáta.
 `tests/`: Testovacie skripty pre overenie funkčnosti modulov v `src/`. Viac v časti **Testy**.
 `report/`: Priečinok s výsledkoami vo formáte JSON a grafmi.
@@ -56,38 +56,39 @@ Porovnávajú sa tri modely:
 ## Inštalácia a spustenie
 
 Naklonujete repozitár:
-```bash
+    ```bash
     git clone https://github.com/IvanSkvarka/Semestralna_praca_OOP_UI.git
     cd Semestralna_praca_OOP_UI
-```
+    ```
 
 > [!TIP]
 > Pre nezavislý projekt vytvorte virtuálne prostredie (virtual enviroment):
-> ```bash
+>   ```bash
 >   python -m venv ./.venv
-> ```
+>   source .venv/bin/activate # pre Windows: venv\Scripts\activate
+>   ```
 
 Nainštalujte závislosti:
-```bash
+    ```bash
     pip install -r requirements.txt
-```
+    ```
 
 > [!WARNING]
 > **Special Requirements:** Pred inštaláciou sa uistite, že máte nainštalovaný `LaTeX` a `cm-super`. V opačnom prípade nastavte `use_latex` = `False`.
 
 > [!TIP]
-> **Konfigurácia projektu:** Projekt je spustiteľný s prednastavenou konfiguráciou, avšak pre personalizované výsledky, prípadne výsledky pre iný dataset treba konfiguráciu nastaviť. Viac v časti **Konfigurácia**.
+> **Konfigurácia projektu:** Projekt je spustiteľný s prednastavenou konfiguráciou, avšak pre personalizované výsledky, prípadne výsledky pre iný dataset treba konfiguráciu nastaviť.
 
 
 Pri spustení sa musíte nachádzať v koreňovom adresáry, potom použite príkaz:
-```bash
+    ```bash
     python src/main.py
-```
+    ```
 
 Dokumentácia je dostupná po použití príkazu z koreňového adresára:
-```bash
+    ```bash
     mkdocs serve
-```
+    ```
 
 ## Konfigurácia
 
@@ -95,7 +96,7 @@ Dokumentácia je dostupná po použití príkazu z koreňového adresára:
 
 ### Abstrakcia
 ### Dedičnosť
-```bash
+    ```bash
     BaseConfigManager
     └── ConfigManager
 
@@ -113,13 +114,14 @@ Dokumentácia je dostupná po použití príkazu z koreňového adresára:
         ├── MeanBaselineModel
         ├── LogLogLinearModel
         └── GradientBoostingModel
-```
+    ```
 ### Polymorfizmus
 ### Zapuzdrenie
 ### Iné:
-Dependecy Injection, Template Method, Pretazenie operatorov, vzor Strategy, Prepisanie metody
+Dependecy Injection, Template Method, Pretazenie operatorov, vzor Strategy, Prepisanie metody.
 
 ### Tok dát
+DataLoader -> EDAnalyzer -> Preprocessor -> HyperparameterTuner -> Evaluator.
 
 ## Metodika
 
@@ -132,7 +134,7 @@ Dependecy Injection, Template Method, Pretazenie operatorov, vzor Strategy, Prep
 4. Vnorená krížová validácia.
 
 - Vonkajšia slučka: GroupKFold s `n` zloženiami meria výkon na dátach, ktoré model nevidel.
-- Vnútorná slučka: GridSearchCV s GroupKFold (`m` zložeí) volí hyperparametre iba z trénovacej časti vonkajšieho zloženia, takže testovacie dáta neovplyvnia výber.
+- Vnútorná slučka: GridSearchCV s GroupKFold (`m` zložení) volí hyperparametre iba z trénovacej časti vonkajšieho zloženia, takže testovacie dáta neovplyvnia výber.
 - Hľadá sa najnižšie RMSE (`neg_root_mean_squared_error`) a po výbere sa model znova natrénuje na celej trénovacej časti.
 
 5. Hyperparametre Gradient Boostingu. Mriežka cez všetky zadané kombinácie: `n_estimators`, `learning_rate`, `max_depth`, `min_samples_leaf`, `subsample`. Ostatné modely sa neladia.
@@ -140,7 +142,10 @@ Dependecy Injection, Template Method, Pretazenie operatorov, vzor Strategy, Prep
 6. Metriky. Na log10 škále sa počíta R2, RMSE a MAE, na pôvodnej škále RMSE a MAE (po spätnej transformácii 10^x). Hodnotia sa predikcie zo všetkých zložení dokopy, priemer a smerodajná odchýlka cez zloženia. Modely sa radia podľa R2 na log10 škále.
 
 ## Testy
-
+Spustenie testov:
+    ```bash
+    python tests/run_all_tests.py
+    ```
 ## Autor a licencia
 Autor: Ivan Škvarka, Strojní fakulta ČVUT v Praze, odbor Automatizace a průmyslová informatika (magisterské štúdium, 1. ročník).
 Predmet: Umělá inteligence a Objektově orientované programování, akademický rok 2026/2027.
