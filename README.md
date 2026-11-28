@@ -17,32 +17,32 @@ Porovnávajú sa tri modely:
 ## Štruktúra projektu
 
 ### Strom priečinkov
-    ```bash
-    .
-    ├── config
-    ├── data
-    ├── docs
-    │   └── api
-    ├── report
-    │   ├── eda
-    │   ├── evaluation
-    │   ├── figures
-    │   │   ├── eda
-    │   │   ├── evaluation
-    │   │   └── preprocessing
-    │   └── preprocessing
-    ├── src
-    │   ├── data_handling
-    │   ├── evaluation
-    │   ├── models
-    │   ├── utils
-    │   └── visualisation
-    ├── tests
-    ├── LICENSE
-    ├── mkdocs.yml
-    ├── README.md
-    └── requirements.txt
-    ```
+```bash
+.
+├── config
+├── data
+├── docs
+│   └── api
+├── report
+│   ├── eda
+│   ├── evaluation
+│   ├── figures
+│   │   ├── eda
+│   │   ├── evaluation
+│   │   └── preprocessing
+│   └── preprocessing
+├── src
+│   ├── data_handling
+│   ├── evaluation
+│   ├── models
+│   ├── utils
+│   └── visualisation
+├── tests
+├── LICENSE
+├── mkdocs.yml
+├── README.md
+└── requirements.txt
+```
 
 ### Popis priečinkov
 
@@ -56,22 +56,22 @@ Porovnávajú sa tri modely:
 ## Inštalácia a spustenie
 
 Naklonujete repozitár:
-    ```bash
-    git clone https://github.com/IvanSkvarka/Semestralna_praca_OOP_UI.git
-    cd Semestralna_praca_OOP_UI
-    ```
+```bash
+git clone https://github.com/IvanSkvarka/Semestralna_praca_OOP_UI.git
+cd Semestralna_praca_OOP_UI
+```
 
 > [!TIP]
 > Pre nezavislý projekt vytvorte virtuálne prostredie (virtual enviroment):
->   ```bash
->   python -m venv ./.venv
->   source .venv/bin/activate # pre Windows: venv\Scripts\activate
->   ```
+> ```bash
+> python -m venv ./.venv
+> source .venv/bin/activate # pre Windows: venv\Scripts\activate
+> ```
 
 Nainštalujte závislosti:
-    ```bash
-    pip install -r requirements.txt
-    ```
+```bash
+pip install -r requirements.txt
+```
 
 > [!WARNING]
 > **Special Requirements:** Pred inštaláciou sa uistite, že máte nainštalovaný `LaTeX` a `cm-super`. V opačnom prípade nastavte `use_latex` = `False`.
@@ -81,14 +81,14 @@ Nainštalujte závislosti:
 
 
 Pri spustení sa musíte nachádzať v koreňovom adresáry, potom použite príkaz:
-    ```bash
-    python src/main.py
-    ```
+```bash
+python src/main.py
+```
 
 Dokumentácia je dostupná po použití príkazu z koreňového adresára:
-    ```bash
-    mkdocs serve
-    ```
+```bash
+mkdocs serve
+```
 
 ## Konfigurácia
 
@@ -96,25 +96,25 @@ Dokumentácia je dostupná po použití príkazu z koreňového adresára:
 
 ### Abstrakcia
 ### Dedičnosť
-    ```bash
-    BaseConfigManager
-    └── ConfigManager
+```bash
+BaseConfigManager
+└── ConfigManager
 
-    BasePipelineComponent
-    ├── DataLoader
-    ├── EDAnalyzer
-    ├── Preprocessor
-    ├── HyperparameterTuner
-    ├── Evaluator
-    ├── BaseVisualizer
-    │   ├── EDAVisualizer
-    │   ├── PreprocessorVisualizer
-    │   └── EvaluationVisualizer
-    └── BaseModel   (spolu so sklearn BaseEstimator, RegressorMixin)
-        ├── MeanBaselineModel
-        ├── LogLogLinearModel
-        └── GradientBoostingModel
-    ```
+BasePipelineComponent
+├── DataLoader
+├── EDAnalyzer
+├── Preprocessor
+├── HyperparameterTuner
+├── Evaluator
+├── BaseVisualizer
+│   ├── EDAVisualizer
+│   ├── PreprocessorVisualizer
+│   └── EvaluationVisualizer
+└── BaseModel   (spolu so sklearn BaseEstimator, RegressorMixin)
+    ├── MeanBaselineModel
+    ├── LogLogLinearModel
+    └── GradientBoostingModel
+```
 ### Polymorfizmus
 ### Zapuzdrenie
 ### Iné:
@@ -143,9 +143,9 @@ DataLoader -> EDAnalyzer -> Preprocessor -> HyperparameterTuner -> Evaluator.
 
 ## Testy
 Spustenie testov:
-    ```bash
-    python tests/run_all_tests.py
-    ```
+```bash
+python tests/run_all_tests.py
+```
 ## Autor a licencia
 Autor: Ivan Škvarka, Strojní fakulta ČVUT v Praze, odbor Automatizace a průmyslová informatika (magisterské štúdium, 1. ročník).
 Predmet: Umělá inteligence a Objektově orientované programování, akademický rok 2026/2027.
