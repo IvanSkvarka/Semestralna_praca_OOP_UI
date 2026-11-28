@@ -1,18 +1,23 @@
+"""
+Drawing heplper for Preprocessor.
+Author: Ivan Skvarka
+"""
+
 from typing import Optional, Set, List
 import pandas as pd
 
-from visualization.base_visualizer import BaseVisualizer # pylint: disable=import-error
+from visualisation.base_visualiser import BaseVisualiser # pylint: disable=import-error
 from utils.config_manager import ConfigManager  # pylint: disable=import-error
 
 
 
-class PreprocessorVisualizer(BaseVisualizer):
+class PreprocessorVisualiser(BaseVisualiser):
     """A plotting helper for the preprocessed data.
 
-    Renders distributions (inherited) of the preprocessed columns and the group sizes. The axis labels of the columns
-    transformed by log10 (`pipeline.preprocessing.log_features` and, if `log_target`
-    is enabled, the target) are marked with a log prefix and a dimensionless unit.
-    Figures are saved in the `preprocessing` figures subdirectory.
+    Renders distributions (inherited) of the preprocessed columns and the group sizes.
+    The axis labels of the columns transformed by log10 (`pipeline.preprocessing.log_features`
+    and, if `log_target` is enabled, the target) are marked with a log prefix and
+    a dimensionless unit. Figures are saved in the `preprocessing` figures subdirectory.
     """
     def __init__(self, config_manager: ConfigManager, name: Optional[str] = None) -> None:
         """Initializes plotting support for preprocessing results.
@@ -25,7 +30,7 @@ class PreprocessorVisualizer(BaseVisualizer):
             name: Optional component name.
 
         Returns:
-            None: The visualizer is ready to render plots.
+            None: The visualiser is ready to render plots.
         """
         super().__init__(config_manager, name, subfolder="preprocessing")
 
@@ -39,10 +44,11 @@ class PreprocessorVisualizer(BaseVisualizer):
             self._logged_columns.add(target)
 
 
+
     def _build_label(self, col: str, include_unit: bool = False) -> str:
         """Builds an axis label that marks columns transformed with log10.
 
-        Delegates untransformed columns to the base visualizer's label builder.
+        Delegates untransformed columns to the base visualiser's label builder.
         Marks transformed columns with a log10 prefix and dimensionless unit when requested.
         Uses the configured label dictionary to render the original column symbol.
 

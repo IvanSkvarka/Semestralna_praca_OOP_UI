@@ -1,4 +1,4 @@
-# Vizualization
+# Visualisation
 
 ::: visualization.base_visualizer
 ::: visualization.eda_visualizer

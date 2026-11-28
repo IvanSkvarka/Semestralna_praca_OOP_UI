@@ -1,12 +1,17 @@
+"""
+Second step of ML pipeline. Do exploratory data analysis (EDA).
+Author: Ivan Skvarka
+"""
+
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import json
 import numpy as np
 import pandas as pd
 
-from base import BasePipelineComponent  # pylint: disable=import-error
-from utils.config_manager import ConfigManager  # pylint: disable=import-error
-from visualization.eda_visualizer import EDAVisualizer  # pylint: disable=import-error
+from base import BasePipelineComponent
+from utils.config_manager import ConfigManager
+from visualisation.eda_visualiser import EDAVisualiser
 
 ERR_MSG = "EDAnalyzer has not been run yet. " \
                  "First, call the `run()` method or call the instance."
@@ -21,11 +26,11 @@ class EDAnalyzer(BasePipelineComponent):
     The results are available through read-only properties after `run()`.
     """
     def __init__(self, config_manager: ConfigManager, name: Optional[str] = None) -> None:
-        """Initializes exploratory analysis results and optional visualization support.
+        """Initializes exploratory analysis results and optional visualisation support.
 
         Reads feature and target columns from configuration for later plotting.
         Initializes analysis results as unavailable until `run()` completes.
-        Creates an EDA visualizer only when plot generation is enabled.
+        Creates an EDA visualiser only when plot generation is enabled.
 
         Args:
             config_manager: Configuration manager instance.
@@ -39,8 +44,8 @@ class EDAnalyzer(BasePipelineComponent):
 
         self._target_cols: List[str] = self.config_manager.get_param("data.target_columns", [])
         self._feature_cols: List[str] = self.config_manager.get_param("data.feature_columns", [])
-        self._visualizer: Optional[EDAVisualizer] = (
-            EDAVisualizer(config_manager, name=f"{self.name}Visualizer")
+        self._visualiser: Optional[EDAVisualiser] = (
+            EDAVisualiser(config_manager, name=f"{self.name}Visualizer")
             if self.config_manager.get_param("pipeline.eda.generate_plots", True)
             else None
         )
@@ -197,7 +202,7 @@ class EDAnalyzer(BasePipelineComponent):
 
         Omits constant columns from each plotted feature and target subset.
         Sends the stored correlation matrix to its dedicated heatmap renderer.
-        Does nothing when no visualizer was created.
+        Does nothing when no visualiser was created.
 
         Args:
             df: The analyzed data.
@@ -206,7 +211,7 @@ class EDAnalyzer(BasePipelineComponent):
         Returns:
             None: Figures are generated as a side effect.
         """
-        if self._visualizer is None:
+        if self._visualiser is None:
             return
 
         constant = set(constant_cols)
@@ -214,11 +219,11 @@ class EDAnalyzer(BasePipelineComponent):
         targets = df[[c for c in self._target_cols if c not in constant]]
         features = df[[c for c in feature_cols if c not in constant]]
 
-        self._visualizer.plot_distributions(targets, "target_columns")
-        self._visualizer.plot_distributions(features, "feature_columns")
-        self._visualizer.plot_correlation_matrix(self.correlation_matrix)
-        self._visualizer.plot_boxplots(targets, "target_columns")
-        self._visualizer.plot_boxplots(features, "feature_columns")
+        self._visualiser.plot_distributions(targets, "target_columns")
+        self._visualiser.plot_distributions(features, "feature_columns")
+        self._visualiser.plot_correlation_matrix(self.correlation_matrix)
+        self._visualiser.plot_boxplots(targets, "target_columns")
+        self._visualiser.plot_boxplots(features, "feature_columns")
 
 
     def _save_reports(self) -> None:
@@ -248,7 +253,7 @@ class EDAnalyzer(BasePipelineComponent):
     def run(
         self, df: pd.DataFrame, *args: Any, **kwargs: Any
     ) -> Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]:
-        """Runs exploratory analysis and stores its reports and visualizations.
+        """Runs exploratory analysis and stores its reports and visualisations.
 
         Computes descriptive statistics, quality metrics, correlations and IQR outliers.
         Stores the resulting report data before generating enabled plots and JSON files.

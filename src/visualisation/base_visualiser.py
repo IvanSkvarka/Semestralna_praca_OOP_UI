@@ -1,22 +1,24 @@
+"""
+A common ancestor of all classes that draw graphs.
+Author: Ivan Skvarka
+"""
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
 import math
-import shutil
-import warnings
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.figure import Figure
 import pandas as pd
 
-from base import BasePipelineComponent  # pylint: disable=import-error
-from utils.config_manager import ConfigManager  # pylint: disable=import-error
+from base import BasePipelineComponent
+from utils.config_manager import ConfigManager
 
 GOLDEN_RATIO = (5**0.5 - 1) / 2
 GRID_COLUMNS = 2
 
 
 
-class BaseVisualizer(BasePipelineComponent):
+class BaseVisualiser(BasePipelineComponent):
     """A base class for components that render figures.
 
     Reads the figure settings from the `visualization` configuration, prepares the
@@ -59,18 +61,14 @@ class BaseVisualizer(BasePipelineComponent):
             self._setup_style()
 
 
+
     def _setup_style(self) -> None:
         """Applies configured font, scale and text-rendering options to matplotlib.
 
-        LaTeX text rendering is enabled only if `visualization.use_tex` is true
-        and a LaTeX installation is found, otherwise a warning is raised. Derives
+        LaTeX text rendering is enabled only if `visualization.use_tex` is true. Derives
         tick and legend sizes from the configured font scale before updating rcParams.
         """
         use_tex = bool(self.config_manager["visualization.use_tex"])
-        if use_tex and shutil.which("latex") is None:
-            warnings.warn("LaTeX not found in PATH. Text rendering with LaTeX is disabled.")
-            use_tex = False
-
         font_size = self.config_manager["visualization.font_size"]
         tick_size = font_size * float(self.config_manager["visualization.tick_scale"])
         legend_size = font_size * float(self.config_manager["visualization.legend_scale"])
@@ -199,6 +197,7 @@ class BaseVisualizer(BasePipelineComponent):
             fig.delaxes(axis)
 
         self._finalize_plot(fig, f"{group_name}_{file_suffix}")
+
 
 
     def run(self, *args: Any, **kwargs: Any) -> None:

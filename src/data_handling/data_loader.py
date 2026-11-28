@@ -16,6 +16,7 @@ ERR_MSG = "The data has not been loaded yet. " \
                  "First, call the `run()` method or call the instance."
 
 
+
 class DataLoader(BasePipelineComponent):
     """A pipeline component that loads and validates the raw CSV dataset.
 

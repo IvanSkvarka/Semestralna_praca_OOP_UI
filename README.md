@@ -6,7 +6,7 @@ Návrh a implementácia znovupoužiteľného objektovo orientovaného pipeline v
 
 Navrhnutý pipeline je riadený konfiguračnými súbormi YAML, takže vstupné stĺpce, predspracovanie, modely a mriežku hyperparametrov možno meniť bez zásahu do kódu.
 
-Riešená úloha je regresia. Dátová sada obsahuje 768 záznamov a 24 stĺpcov: 20 vstupných príznakov (geometria miešaného reaktora, parametre miešadiel a otáčky rpm) a 4 cieľové veličiny. Predikovanou veličinou je medián turbulentnej disipácie epsilon_p50, ktorý sa pohybuje v rozsahu od 4 * 10^(-4) do 0,73. [https://www.kaggle.com/datasets/novalabs/stirred-reactor-cfd-ml-dataset]
+Riešená úloha je regresia. Dátová sada obsahuje 768 záznamov a 24 stĺpcov: 20 vstupných príznakov (geometria miešaného reaktora, parametre miešadiel a otáčky rpm) a 4 cieľové veličiny. Predikovanou veličinou je medián turbulentnej disipácie epsilon_p50, ktorý sa pohybuje v rozsahu od 4 * 10^(-4) do 0,73 [Stirred reactor dataset](https://www.kaggle.com/datasets/novalabs/stirred-reactor-cfd-ml-dataset).
 
 Porovnávajú sa tri modely:
 
@@ -20,82 +20,24 @@ Porovnávajú sa tri modely:
 ```bash
     .
     ├── config
-    │   ├── data.yaml
-    │   ├── dictionary.yaml
-    │   ├── pipeline.yaml
-    │   ├── settings.yaml
-    │   └── visualization.yaml
     ├── data
-    │   └── training_data_set.csv
     ├── docs
-    │   ├── api
-    │   │   ├── core.md
-    │   │   ├── data_handling.md
-    │   │   ├── evaluation.md
-    │   │   ├── models.md
-    │   │   ├── tests.md
-    │   │   ├── utils.md
-    │   │   └── visualization.md
-    │   └── index.md
+    │   └── api
     ├── report
     │   ├── eda
-    │   │   ├── basic_statistics.json
-    │   │   ├── correlation_matrix.json
-    │   │   └── dataset_info.json
     │   ├── evaluation
-    │   │   ├── evaluation_summary.json
-    │   │   └── GridSearchCV_best_params.json
     │   ├── figures
     │   │   ├── eda
-    │   │   │   ├── correlation_matrix.pdf
-    │   │   │   ├── feature_columns_boxplot.pdf
-    │   │   │   ├── feature_columns_histplot.pdf
-    │   │   │   ├── target_columns_boxplot.pdf
-    │   │   │   └── target_columns_histplot.pdf
     │   │   ├── evaluation
-    │   │   │   ├── metrics_comparison.pdf
-    │   │   │   └── predicted_vs_true.pdf
     │   │   └── preprocessing
-    │   │       ├── features_histplot.pdf
-    │   │       ├── group_sizes.pdf
-    │   │       └── target_histplot.pdf
     │   └── preprocessing
-    │       └── preprocessing_report.json
     ├── src
     │   ├── data_handling
-    │   │   ├── data_loader.py
-    │   │   ├── eda_analyzer.py
-    │   │   ├── __init__.py
-    │   │   └── preprocessor.py
     │   ├── evaluation
-    │   │   ├── evaluator.py
-    │   │   ├── __init__.py
-    │   │   └── tuner.py
     │   ├── models
-    │   │   ├── base_model.py
-    │   │   ├── gradientboosting_model.py
-    │   │   ├── __init__.py
-    │   │   ├── logloglinear_model.py
-    │   │   └── meanbaseline_model.py
     │   ├── utils
-    │   │   ├── base_config_manager.py
-    │   │   ├── config_manager.py
-    │   │   └── __init__.py
-    │   ├── visualization
-    │   │   ├── base_visualizer.py
-    │   │   ├── eda_visualizer.py
-    │   │   ├── evaluation_visualizer.py
-    │   │   ├── __init__.py
-    │   │   └── preprocessor_visualizer.py
-    │   ├── base.py
-    │   └── main.py
+    │   └── visualisation
     ├── tests
-    │   ├── configuration.py
-    │   ├── run_all_tests.py
-    │   ├── test_config.py
-    │   ├── test_data_handling.py
-    │   ├── test_evaluation.py
-    │   └── test_models.py
     ├── LICENSE
     ├── mkdocs.yml
     ├── README.md
@@ -104,20 +46,28 @@ Porovnávajú sa tri modely:
 
 ### Popis priečinkov
 
-`src/`:
-`config/`:
-`data/`:
-`tests/`:
-`report/`:
-`docs/`:
+`src/`: Adresár so zdrojovými kódmi.
+`config/`: Konfiguračný adresár.
+`data/`: Adresár obsahujúci dáta.
+`tests/`: Testovacie skripty pre overenie funkčnosti modulov v `src/`. Viac v časti **Testy**.
+`report/`: Priečinok s výsledkoami vo formáte JSON a grafmi.
+`docs/`: Dokumentácia projektu.
 
 ## Inštalácia a spustenie
 
+Naklonujete repozitár:
+```bash
+    git clone https://github.com/IvanSkvarka/Semestralna_praca_OOP_UI.git
+    cd Semestralna_praca_OOP_UI
+```
+
 > [!TIP]
+> Pre nezavislý projekt vytvorte virtuálne prostredie (virtual enviroment):
 > ```bash
 >   python -m venv ./.venv
 > ```
 
+Nainštalujte závislosti:
 ```bash
     pip install -r requirements.txt
 ```
@@ -125,18 +75,51 @@ Porovnávajú sa tri modely:
 > [!WARNING]
 > **Special Requirements:** Pred inštaláciou sa uistite, že máte nainštalovaný `LaTeX` a `cm-super`. V opačnom prípade nastavte `use_latex` = `False`.
 
+> [!TIP]
+> **Konfigurácia projektu:** Projekt je spustiteľný s prednastavenou konfiguráciou, avšak pre personalizované výsledky, prípadne výsledky pre iný dataset treba konfiguráciu nastaviť. Viac v časti **Konfigurácia**.
+
+
+Pri spustení sa musíte nachádzať v koreňovom adresáry, potom použite príkaz:
 ```bash
     python src/main.py
 ```
 
+Dokumentácia je dostupná po použití príkazu z koreňového adresára:
+```bash
+    mkdocs serve
+```
+
 ## Konfigurácia
 
-## Architektúra (OOP)
+## Princípy OOP
 
-### Popis tried a vzťahov
-### Tok dát
+### Abstrakcia
 ### Dedičnosť
-### Vizualizéry
+```bash
+    BaseConfigManager
+    └── ConfigManager
+
+    BasePipelineComponent
+    ├── DataLoader
+    ├── EDAnalyzer
+    ├── Preprocessor
+    ├── HyperparameterTuner
+    ├── Evaluator
+    ├── BaseVisualizer
+    │   ├── EDAVisualizer
+    │   ├── PreprocessorVisualizer
+    │   └── EvaluationVisualizer
+    └── BaseModel   (spolu so sklearn BaseEstimator, RegressorMixin)
+        ├── MeanBaselineModel
+        ├── LogLogLinearModel
+        └── GradientBoostingModel
+```
+### Polymorfizmus
+### Zapuzdrenie
+### Iné:
+Dependecy Injection, Template Method, Pretazenie operatorov, vzor Strategy, Prepisanie metody
+
+### Tok dát
 
 ## Metodika
 

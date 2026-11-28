@@ -4,9 +4,9 @@ import json
 import pandas as pd
 import numpy as np
 
-from base import BasePipelineComponent  # pylint: disable=import-error
-from utils.config_manager import ConfigManager  # pylint: disable=import-error
-from visualization.preprocessor_visualizer import PreprocessorVisualizer  # pylint: disable=import-error
+from base import BasePipelineComponent
+from utils.config_manager import ConfigManager
+from visualisation.preprocessor_visualiser import PreprocessorVisualiser
 
 ERR_MSG = "Preprocessor has not been run yet. " \
                  "First, call the `run()` method or call the instance."
@@ -22,11 +22,11 @@ class Preprocessor(BasePipelineComponent):
     through read-only properties after `run()`.
     """
     def __init__(self, config_manager: ConfigManager, name: Optional[str] = None) -> None:
-        """Initializes preprocessing options and optional visualization support.
+        """Initializes preprocessing options and optional visualisation support.
 
         Reads target, grouping, transformation and cleanup options from configuration.
         Initializes result storage before any input data has been processed.
-        Creates a visualizer only when preprocessing plots are enabled.
+        Creates a visualiser only when preprocessing plots are enabled.
 
         Args:
             config_manager: Configuration manager instance.
@@ -59,8 +59,8 @@ class Preprocessor(BasePipelineComponent):
         self._groups: Optional[pd.Series] = None
         self._logged_features: List[str] = []
 
-        self._visualizer: Optional[PreprocessorVisualizer] = (
-            PreprocessorVisualizer(config_manager, name=f"{self.name}Visualizer")
+        self._visualiser: Optional[PreprocessorVisualiser] = (
+            PreprocessorVisualiser(config_manager, name=f"{self.name}Visualizer")
             if self.config_manager.get_param("pipeline.preprocessing.generate_plots", True)
             else None
         )
@@ -119,18 +119,18 @@ class Preprocessor(BasePipelineComponent):
 
 
     def _plot(self) -> None:
-        """Renders target, feature and group-size plots when a visualizer is configured.
+        """Renders target, feature and group-size plots when a visualiser is configured.
 
         Does nothing when plot generation was disabled during initialization.
         Otherwise sends the current preprocessing results to their corresponding plots.
         The results are accessed through properties that validate preprocessing state.
         """
-        if self._visualizer is None:
+        if self._visualiser is None:
             return
 
-        self._visualizer.plot_distributions(self.target.to_frame(), "target")
-        self._visualizer.plot_distributions(self.features, "features")
-        self._visualizer.plot_group_sizes(self.groups)
+        self._visualiser.plot_distributions(self.target.to_frame(), "target")
+        self._visualiser.plot_distributions(self.features, "features")
+        self._visualiser.plot_group_sizes(self.groups)
 
 
     def _save_report(self) -> None:

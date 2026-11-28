@@ -2,12 +2,12 @@ from typing import Any, List, Optional
 import math
 import pandas as pd
 
-from visualization.base_visualizer import BaseVisualizer, GRID_COLUMNS # pylint: disable=import-error
+from visualisation.base_visualiser import BaseVisualiser, GRID_COLUMNS # pylint: disable=import-error
 from utils.config_manager import ConfigManager  # pylint: disable=import-error
 
 
 
-class EvaluationVisualizer(BaseVisualizer):
+class EvaluationVisualiser(BaseVisualiser):
     """A plotting helper for the evaluation of the models.
 
     Renders the comparison of the metrics and the predicted versus the true target from
@@ -26,7 +26,7 @@ class EvaluationVisualizer(BaseVisualizer):
             name: Optional component name.
 
         Returns:
-            None: The visualizer is ready to render plots.
+            None: The visualiser is ready to render plots.
         """
         super().__init__(config_manager, name, subfolder="evaluation")
         self._log_target: bool = bool(

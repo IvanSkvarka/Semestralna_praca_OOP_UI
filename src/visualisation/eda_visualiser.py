@@ -1,22 +1,27 @@
+"""
+Drawing heplper for exploratory data analysis.
+Author: Ivan Skvarka
+"""
+
 from typing import Any, Optional
 import pandas as pd
 import seaborn as sns
 
-from utils.config_manager import ConfigManager # pylint: disable=import-error
-from visualization.base_visualizer import BaseVisualizer # pylint: disable=import-error
+from utils.config_manager import ConfigManager
+from visualisation.base_visualiser import BaseVisualiser
 
 
 
-class EDAVisualizer(BaseVisualizer):
+class EDAVisualiser(BaseVisualiser):
     """A plotting helper for the exploratory data analysis.
 
     Renders boxplots and the correlation matrix (distributions are inherited) from data
-    prepared by EDAnalyzer. Figures are saved in the `eda` figures subdirectory.
+    prepared by EDAnalyser. Figures are saved in the `eda` figures subdirectory.
     """
     def __init__(self, config_manager: ConfigManager, name: Optional[str] = None) -> None:
         """Initializes plotting support for exploratory data analysis.
 
-        Delegates shared plotting configuration to the base visualizer.
+        Delegates shared plotting configuration to the base visualiser.
         Routes generated figures to the EDA-specific output subdirectory.
 
         Args:
@@ -24,7 +29,7 @@ class EDAVisualizer(BaseVisualizer):
             name: Optional component name.
 
         Returns:
-            None: The visualizer is ready to render plots.
+            None: The visualiser is ready to render plots.
         """
         super().__init__(config_manager, name, subfolder="eda")
 
@@ -45,18 +50,6 @@ class EDAVisualizer(BaseVisualizer):
             None: The figure is saved as a side effect.
         """
         def _draw_box(series: pd.Series, axis: Any) -> None:
-            """Draws a horizontal boxplot for a single data column.
-
-            Uses the series as the horizontal value axis for the boxplot.
-            The caller supplies the axes so the plot can be embedded in a figure grid.
-
-            Args:
-                series: Column values to visualize.
-                axis: Matplotlib axes that receives the plot.
-
-            Returns:
-                None: The boxplot is drawn as a side effect.
-            """
             sns.boxplot(x=series, orient="h", ax=axis)
 
         self._plot_grid(

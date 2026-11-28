@@ -1,7 +1,13 @@
+"""
+Abstract common ancestor for ML pipeline steps. Pipeline is a chain of steps, that comes
+back-to-back: data loading, EDA, preprocessing, models, tuning, evaluation and visualisation.
+Author: Ivan Skvarka
+"""
+
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
-from utils.config_manager import ConfigManager # pylint: disable=import-error
+from utils.config_manager import ConfigManager
 
 
 

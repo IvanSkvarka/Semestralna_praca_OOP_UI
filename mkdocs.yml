@@ -24,6 +24,6 @@ nav:
       - Data Handling: api/data_handling.md
       - Models: api/models.md
       - Evaluation: api/evaluation.md
-      - Visualization: api/visualization.md
+      - Visualisation: api/visualisation.md
       - Utils: api/utils.md
       - Tests: tests.md

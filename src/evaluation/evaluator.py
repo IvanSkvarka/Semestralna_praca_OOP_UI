@@ -10,7 +10,7 @@ from sklearn.model_selection import GridSearchCV, GroupKFold
 from base import BasePipelineComponent # pylint: disable=import-error
 from utils.config_manager import ConfigManager # pylint: disable=import-error
 from models.base_model import BaseModel # pylint: disable=import-error
-from visualization.evaluation_visualizer import EvaluationVisualizer # pylint: disable=import-error
+from visualisation.evaluation_visualiser import EvaluationVisualiser # pylint: disable=import-error
 
 ERR_MSG = "Evaluator has not been run yet. " \
                  "First, call the `run()` method or call the instance."
@@ -95,11 +95,11 @@ class Evaluator(BasePipelineComponent):
     search does not leak data.
     """
     def __init__(self, config_manager: ConfigManager, name: Optional[str] = None) -> None:
-        """Initializes evaluation settings and optional visualization support.
+        """Initializes evaluation settings and optional visualisation support.
 
         Reads the number of outer folds and the target-scale option from configuration.
         Initializes stored evaluation results as unavailable until `run()` completes.
-        Creates an evaluation visualizer only when plot generation is enabled.
+        Creates an evaluation visualiser only when plot generation is enabled.
 
         Args:
             config_manager: Configuration manager instance.
@@ -117,8 +117,8 @@ class Evaluator(BasePipelineComponent):
         self._y_true: Optional[pd.Series] = None
         self._best_params: Dict[str, List[Dict[str, Any]]] = {}
 
-        self._visualizer: Optional[EvaluationVisualizer] = (
-            EvaluationVisualizer(config_manager, name=f"{self.name}Visualizer")
+        self._visualiser: Optional[EvaluationVisualiser] = (
+            EvaluationVisualiser(config_manager, name=f"{self.name}Visualizer")
             if self.config_manager.get_param("pipeline.evaluation.generate_plots", True)
             else None
         )
@@ -174,14 +174,14 @@ class Evaluator(BasePipelineComponent):
     def _plot(self) -> None:
         """Renders metric comparisons and out-of-fold predictions when plotting is enabled.
 
-        Does nothing when no evaluation visualizer was created.
+        Does nothing when no evaluation visualiser was created.
         Otherwise passes the stored comparison table, target and predictions to it.
         """
-        if self._visualizer is None:
+        if self._visualiser is None:
             return
 
-        self._visualizer.plot_metrics(self.comparison_table)
-        self._visualizer.plot_predictions(self.y_true, self.predictions)
+        self._visualiser.plot_metrics(self.comparison_table)
+        self._visualiser.plot_predictions(self.y_true, self.predictions)
 
 
     def _save_report(self) -> None:
