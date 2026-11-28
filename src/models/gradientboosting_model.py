@@ -106,20 +106,3 @@ class GradientBoostingModel(BaseModel):
         """
         self._check_is_fitted()
         return self._model.predict(x_test)
-
-
-    @property
-    def feature_importances(self) -> Dict[str, float]:
-        """Returns the importance of each feature, sorted from the most important.
-
-        Raises:
-            RuntimeError: If the model has not been fitted.
-        """
-        self._check_is_fitted()
-        importances = {
-            str(feature): float(importance)
-            for feature, importance in zip(
-                self._model.feature_names_in_, self._model.feature_importances_ # type: ignore
-            )
-        }
-        return dict(sorted(importances.items(), key=lambda item: item[1], reverse=True))

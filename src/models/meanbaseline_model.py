@@ -63,14 +63,3 @@ class MeanBaselineModel(BaseModel):
         """
         self._check_is_fitted()
         return self._model.predict(x_test) # type: ignore
-
-
-    @property
-    def constant(self) -> float:
-        """Returns the training-target mean predicted for every row.
-
-        Raises:
-            RuntimeError: If the model has not been fitted.
-        """
-        self._check_is_fitted()
-        return float(np.ravel(self._model.constant_)[0]) # type: ignore

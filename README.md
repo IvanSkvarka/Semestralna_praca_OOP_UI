@@ -65,7 +65,7 @@ cd Semestralna_praca_OOP_UI
 > Pre nezavislý projekt vytvorte virtuálne prostredie (virtual enviroment):
 > ```bash
 > python -m venv ./.venv
-> source .venv/bin/activate # pre Windows: venv\Scripts\activate
+> source .venv/bin/activate # pre Windows: .venv\Scripts\activate
 > ```
 
 Nainštalujte závislosti:
